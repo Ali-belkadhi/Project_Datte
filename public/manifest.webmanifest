@@ -1,0 +1,14 @@
+{
+  "name": "DEGLA — Dattes de Tunisie",
+  "short_name": "DEGLA",
+  "description": "La marketplace des dattes tunisiennes et de leurs produits dérivés.",
+  "lang": "fr",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF5EC",
+  "theme_color": "#24150F",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

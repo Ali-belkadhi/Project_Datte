@@ -1,0 +1,59 @@
+# Remplacer par les vrais identifiants GitHub
+# Module A — Comptes (Baha Ayadi) · Module B — Catalogue (Ali Belkathi) · Module C — Commandes (Karim Ouertatani)
+
+# Commun (les trois)
+*                                   @baha-ayadi @ali-belkathi @karim-ouertatani
+/src/components/ui/                 @baha-ayadi @ali-belkathi @karim-ouertatani
+/src/components/layout/             @baha-ayadi @ali-belkathi @karim-ouertatani
+/src/app/globals.css                @baha-ayadi @ali-belkathi @karim-ouertatani
+/src/server/core/                   @baha-ayadi @ali-belkathi @karim-ouertatani
+
+# Module A — Comptes
+/src/features/comptes/              @baha-ayadi
+/src/server/modules/comptes/        @baha-ayadi
+/src/server/contracts/comptes.ts    @baha-ayadi
+/src/app/(auth)/                    @baha-ayadi
+/src/app/(public)/compte/           @baha-ayadi
+/src/app/vendeur/onboarding/        @baha-ayadi
+/src/app/vendeur/boutique/          @baha-ayadi
+/src/app/vendeur/messages/          @baha-ayadi
+/src/app/vendeur/parametres/        @baha-ayadi
+/src/app/admin/                     @baha-ayadi
+/src/app/api/auth/                  @baha-ayadi
+
+# Module B — Catalogue (et toute la 3D)
+/src/features/catalogue/            @ali-belkathi
+/src/components/three/              @ali-belkathi
+/src/server/modules/catalogue/      @ali-belkathi
+/src/server/contracts/catalogue.ts  @ali-belkathi
+/src/app/(public)/catalogue/        @ali-belkathi
+/src/app/(public)/produit/          @ali-belkathi
+/src/app/(public)/variete/          @ali-belkathi
+/src/app/(public)/varietes/         @ali-belkathi
+/src/app/(public)/boutique/         @ali-belkathi
+/src/app/(public)/recherche/        @ali-belkathi
+/src/app/(public)/compte/favoris/   @ali-belkathi
+/src/app/vendeur/produits/          @ali-belkathi
+/src/app/vendeur/studio-3d/         @ali-belkathi
+/src/app/vendeur/credits/           @ali-belkathi
+/src/app/admin/varietes/            @ali-belkathi
+/src/app/api/webhooks/meshy/        @ali-belkathi
+/src/app/api/cron/modeles-3d/       @ali-belkathi
+/src/app/api/ia/fiche-produit/      @ali-belkathi
+
+# Module C — Commandes
+/src/features/commandes/            @karim-ouertatani
+/src/server/modules/commandes/      @karim-ouertatani
+/src/server/contracts/commandes.ts  @karim-ouertatani
+/src/app/(public)/panier/           @karim-ouertatani
+/src/app/(public)/commande/         @karim-ouertatani
+/src/app/(public)/assistant/        @karim-ouertatani
+/src/app/(public)/compte/commandes/ @karim-ouertatani
+/src/app/vendeur/page.tsx           @karim-ouertatani
+/src/app/vendeur/commandes/         @karim-ouertatani
+/src/app/vendeur/avis/              @karim-ouertatani
+/src/app/vendeur/versements/        @karim-ouertatani
+/src/app/admin/litiges/             @karim-ouertatani
+/src/app/api/webhooks/paiement/     @karim-ouertatani
+/src/app/api/cron/versements/       @karim-ouertatani
+/src/app/api/ia/assistant/          @karim-ouertatani
