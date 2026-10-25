@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Prisma (client généré plus tard)
 /src/generated
+
+# exemple de configuration partagé avec l equipe (aucun secret)
+!.env.example

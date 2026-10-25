@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Check, ChefHat, Printer, Truck, X } from "lucide-react";
+import { Check, ChefHat, PackageCheck, Printer, Truck, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/hooks/use-action";
 import type { StatutSousCommande } from "@/types/enums";
-import { accepterSousCommande, expedierSousCommande, preparerSousCommande, refuserSousCommande } from "@/server/modules/commandes/actions";
+import { accepterSousCommande, expedierSousCommande, livrerSousCommande, preparerSousCommande, refuserSousCommande } from "@/server/modules/commandes/actions";
 
 /** Actions selon le statut : Accepter / Refuser (motif), En préparation, Expédier (transporteur + suivi), Bordereau. */
 export function OrderActions({ numero, statut: initial, compact = false }: { numero: string; statut: StatutSousCommande; compact?: boolean }) {
@@ -23,6 +23,7 @@ export function OrderActions({ numero, statut: initial, compact = false }: { num
   const preparer = useAction(preparerSousCommande, { onSuccess: () => setStatut("EN_PREPARATION") });
   const refuser = useAction(refuserSousCommande, { onSuccess: () => (setStatut("REFUSEE"), setDialog(null)) });
   const expedier = useAction(expedierSousCommande, { onSuccess: () => (setStatut("EXPEDIEE"), setDialog(null)) });
+  const livrer = useAction(livrerSousCommande, { onSuccess: () => setStatut("LIVREE") });
   const size = compact ? "sm" : "default";
 
   const bordereau = (
@@ -111,7 +112,14 @@ export function OrderActions({ numero, statut: initial, compact = false }: { num
           {bordereau}
         </>
       )}
-      {statut === "EXPEDIEE" && bordereau}
+      {statut === "EXPEDIEE" && (
+        <>
+          <Button variant="brand" size={size} disabled={livrer.pending} onClick={() => livrer.run({ numero })}>
+            <PackageCheck aria-hidden /> Confirmer la livraison
+          </Button>
+          {bordereau}
+        </>
+      )}
       {["LIVREE", "REFUSEE", "ANNULEE", "REMBOURSEE"].includes(statut) && <span className="text-[13px] text-muted-foreground">Aucune action requise</span>}
     </div>
   );

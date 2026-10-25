@@ -2,7 +2,9 @@
 import "server-only";
 import type { ResultatOutil, ScenarioAssistant } from "@/types/domain";
 import { getProduitsPourPanier, infosVariete } from "@/server/contracts/catalogue";
-import { assistantRepository, commandeRepository } from "../repositories";
+import { getUtilisateurCourant } from "@/server/contracts/comptes";
+import { assistantRepository } from "../repositories";
+import { suiviPourClient } from "./commandes";
 
 /**
  * Résout les scénarios scriptés (références → objets d'interface) via les contrats.
@@ -30,9 +32,10 @@ export async function getScenariosAssistant(): Promise<{
         const [a, b] = await Promise.all(r.varietes.map(infosVariete));
         if (a && b) resultat = { outil: "varietes", comparaison: [a, b] };
       } else if (r?.outil === "suivi") {
-        const c = await commandeRepository.parNumero(r.commandeNumero);
+        const u = await getUtilisateurCourant();
+        const c = (await suiviPourClient(u.id, r.commandeNumero)) ?? (await suiviPourClient(u.id, (await derniereCommandeNumero(u.id)) ?? ""));
         const sc = c?.sousCommandes[0];
-        if (sc) resultat = { outil: "suivi", commandeNumero: r.commandeNumero, etapes: sc.etapes, vendeur: sc.fournisseurNom };
+        if (sc) resultat = { outil: "suivi", commandeNumero: c.numero, etapes: sc.etapes, vendeur: sc.fournisseurNom };
       } else if (r?.outil === "ajout-panier") {
         const [item] = await getProduitsPourPanier([r.produitId]);
         if (item && item.produit.typeProduit === "DATTE") {
@@ -48,4 +51,10 @@ export async function getScenariosAssistant(): Promise<{
     }),
   );
   return { scenarios, suggestions, reponseGenerique };
+}
+
+/** Numéro de la commande la plus récente du client (le scénario « où est ma commande ? »). */
+async function derniereCommandeNumero(clientId: string) {
+  const { db } = await import("../repositories");
+  return (await (await db.commandes()).findOne({ clientId }, { sort: { creeLe: -1 } }))?.numero ?? null;
 }

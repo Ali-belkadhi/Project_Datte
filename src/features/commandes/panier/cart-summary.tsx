@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { formatPrix } from "@/lib/format";
 import { useAction } from "@/hooks/use-action";
+import { toast } from "sonner";
+import { useCartStore } from "@/stores/cart-store";
+import type { LignePanier } from "@/types/domain";
 import { appliquerCodePromo } from "@/server/modules/commandes/actions";
 
 type CartSummaryProps = {
@@ -17,14 +20,22 @@ type CartSummaryProps = {
   colis: number;
   cta?: { href: string; label: string } | null;
   promo?: boolean;
+  /** Lignes du panier : le code promo est évalué par le serveur sur ces lignes. */
+  lignes?: LignePanier[];
 };
 
 /** Récapitulatif : sous-total, livraison (somme des groupes), code promo (visuel), total, bouton. */
-export function CartSummary({ sousTotal, livraison, remise, onRemise, colis, cta = { href: "/commande", label: "Passer la commande" }, promo = true }: CartSummaryProps) {
-  const [code, setCode] = useState("");
+export function CartSummary({ sousTotal, livraison, remise, onRemise, colis, cta = { href: "/commande", label: "Passer la commande" }, promo = true, lignes = [] }: CartSummaryProps) {
+  const setCodePromo = useCartStore((s) => s.setCodePromo);
+  const [code, setCode] = useState(useCartStore.getState().codePromo ?? "");
   const { run, pending } = useAction(appliquerCodePromo, {
     silencieux: true,
-    onSuccess: (d) => onRemise?.(d.valide ? Math.round((sousTotal * d.remisePourcentage) / 100) : 0),
+    onSuccess: (d) => {
+      onRemise?.(d.valide ? d.remise : 0);
+      setCodePromo(d.valide ? d.code : null);
+      if (d.valide) toast.success(`Code ${d.code} : ${d.message}`);
+      else toast.error(d.message);
+    },
   });
   const total = Math.max(0, sousTotal + livraison - remise);
   return (
@@ -53,7 +64,7 @@ export function CartSummary({ sousTotal, livraison, remise, onRemise, colis, cta
           className="flex gap-2"
           onSubmit={async (e) => {
             e.preventDefault();
-            await run({ code });
+            await run({ code, lignes: lignes.map((l) => ({ produitId: l.produitId, quantiteGrammes: l.quantiteGrammes, quantiteUnites: l.quantiteUnites })) });
           }}
         >
           <label htmlFor="code-promo" className="sr-only">

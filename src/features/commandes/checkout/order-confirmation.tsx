@@ -9,7 +9,7 @@ import { formatPrix } from "@/lib/format";
 import type { Commande } from "@/types/domain";
 
 /** Confirmation : coche animée, « Merci Sarra ! », numéro en mono, sous-commandes et vendeurs. */
-export function OrderConfirmation({ commande, prenom }: { commande: Commande; prenom: string }) {
+export function OrderConfirmation({ commande, prenom, etat = "confirmee" }: { commande: Commande; prenom: string; etat?: "confirmee" | "attente" | "annulee" }) {
   const reduit = useReducedMotion();
   return (
     <div className="mx-auto max-w-2xl space-y-8 text-center">
@@ -21,7 +21,11 @@ export function OrderConfirmation({ commande, prenom }: { commande: Commande; pr
       </div>
       <div className="space-y-3">
         <h1 className="font-display text-4xl font-semibold md:text-5xl">Merci {prenom} !</h1>
-        <p className="text-[17px] text-muted-foreground">Votre commande est confirmée. Chaque vendeur a été prévenu et prépare votre colis.</p>
+        <p className="text-[17px] text-muted-foreground">
+          {etat === "confirmee" && (commande.methodePaiement === "A_LA_LIVRAISON" ? "Votre commande est enregistrée. Vous réglerez chaque colis à la livraison." : `Paiement reçu (${formatPrix(commande.total)}). Chaque vendeur a été prévenu et prépare votre colis.`)}
+          {etat === "attente" && "Votre paiement est en cours de vérification. Cette page se met à jour dès sa confirmation."}
+          {etat === "annulee" && "Le paiement n'a pas abouti : la commande a été annulée."}
+        </p>
         <p className="inline-flex items-center gap-2 rounded-full border bg-card px-4 py-2 font-mono text-sm font-semibold">Commande {commande.numero}</p>
       </div>
       <ul className="space-y-3 text-start">
@@ -38,7 +42,7 @@ export function OrderConfirmation({ commande, prenom }: { commande: Commande; pr
                 <span className="font-mono">{s.numero}</span> · {s.lignes.length} article{s.lignes.length > 1 ? "s" : ""} · {formatPrix(s.sousTotal + s.fraisLivraison)}
               </p>
             </div>
-            <StatusBadge status={STATUT_SOUS_COMMANDE.EN_ATTENTE} />
+            <StatusBadge status={STATUT_SOUS_COMMANDE[s.statut]} />
           </li>
         ))}
       </ul>

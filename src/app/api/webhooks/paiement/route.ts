@@ -1,13 +1,28 @@
-// MODULE C — webhook de la passerelle de paiement.
-// Corps attendu (à adapter à l'API choisie) : { reference, statut: "REUSSI" | "ECHOUE" }.
-// TODO(module C) : vérifier la signature de la passerelle avant de confirmer.
-import { confirmationPaiementSchema } from "@/lib/validation/commandes";
-import { confirmerPaiement } from "@/server/modules/commandes/services/paiements";
+// MODULE C — webhook Stripe : signature vérifiée + traitement idempotent (un événement n'est traité qu'une fois).
+// Événements à activer dans Stripe : checkout.session.completed, checkout.session.expired,
+// checkout.session.async_payment_succeeded, checkout.session.async_payment_failed.
+import type Stripe from "stripe";
+import { stripe } from "@/server/integrations/paiement";
+import { traiterEvenementStripe } from "@/server/modules/commandes/services/paiements";
 
 export async function POST(request: Request) {
-  const parsed = confirmationPaiementSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return Response.json({ error: "VALIDATION" }, { status: 400 });
-  const p = await confirmerPaiement(parsed.data.reference, parsed.data.statut);
-  if (!p) return Response.json({ error: "NOT_FOUND" }, { status: 404 });
-  return Response.json({ ok: true, reference: p.reference, statut: p.statut });
+  const secret = process.env.STRIPE_SECRET_WEBHOOK;
+  const signature = request.headers.get("stripe-signature");
+  if (!secret || !signature) return Response.json({ error: "SIGNATURE_MANQUANTE" }, { status: 400 });
+
+  let evenement: Stripe.Event;
+  try {
+    // corps BRUT obligatoire pour vérifier la signature
+    evenement = await stripe().webhooks.constructEventAsync(await request.text(), signature, secret);
+  } catch {
+    return Response.json({ error: "SIGNATURE_INVALIDE" }, { status: 400 });
+  }
+
+  try {
+    const r = await traiterEvenementStripe(evenement);
+    return Response.json({ recu: true, ...r });
+  } catch (e) {
+    console.error("[webhook stripe]", e);
+    return Response.json({ error: "INTERNE" }, { status: 500 }); // Stripe renverra l'événement
+  }
 }

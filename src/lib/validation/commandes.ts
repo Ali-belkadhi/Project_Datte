@@ -19,23 +19,29 @@ export const majLignePanierSchema = z.object({
   quantiteUnites: z.number().int().min(0).optional(),
 });
 
-export const codePromoSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z0-9]{4,16}$/, "Code invalide."),
-});
+export const retraitLignePanierSchema = z.object({ produitId: z.string().min(1) });
+
+const codeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9]{4,16}$/, "Code invalide.");
+
+const lignesSchema = z
+  .array(z.object({ produitId: z.string().min(1), quantiteGrammes: z.number().int().positive().optional(), quantiteUnites: z.number().int().positive().optional() }))
+  .min(1, "Votre panier est vide.");
+
+export const codePromoSchema = z.object({ code: codeSchema, lignes: lignesSchema.optional() });
 
 export const checkoutSchema = z.object({
-  lignes: z
-    .array(z.object({ produitId: z.string().min(1), quantiteGrammes: z.number().int().positive().optional(), quantiteUnites: z.number().int().positive().optional() }))
-    .min(1, "Votre panier est vide."),
+  lignes: lignesSchema,
   adresseId: z.string().min(1, "Choisissez une adresse."),
   livraison: z.record(z.string(), z.enum(["standard", "express"])),
   methodePaiement: z.enum(["KONNECT", "FLOUCI", "CARTE", "A_LA_LIVRAISON"]),
-  codePromo: z.string().optional(),
+  codePromo: codeSchema.optional(),
 });
+
+export const reprisePaiementSchema = z.object({ numero: z.string().min(1) });
 
 export const annulationSchema = z.object({ numero: z.string().min(1), motif: z.string().trim().optional() });
 
@@ -79,4 +85,19 @@ export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type AvisInput = z.infer<typeof avisSchema>;
 export type ExpeditionInput = z.infer<typeof expeditionSchema>;
 
-export const confirmationPaiementSchema = z.object({ reference: z.string().min(1), statut: z.enum(["REUSSI", "ECHOUE"]) });
+/* ------------------------------ Admin : codes promo ------------------------------ */
+
+export const codePromoAdminSchema = z
+  .object({
+    code: codeSchema,
+    type: z.enum(["POURCENTAGE", "MONTANT_FIXE"]),
+    valeur: z.number().int().positive("Valeur requise."),
+    fournisseurId: z.string().optional(),
+    montantMinimum: z.number().int().min(0),
+    debut: z.coerce.date(),
+    fin: z.coerce.date(),
+    utilisationsMax: z.number().int().positive().optional(),
+  })
+  .refine((c) => c.fin > c.debut, { message: "La date de fin doit suivre la date de début.", path: ["fin"] });
+
+export const basculeCodePromoSchema = z.object({ code: codeSchema, actif: z.boolean() });

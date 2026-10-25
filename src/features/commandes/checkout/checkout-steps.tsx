@@ -1,6 +1,5 @@
 "use client";
 import { Banknote, CreditCard, Lock, Package, Truck, Zap } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AddressCard } from "@/components/shared/address-card";
@@ -12,7 +11,7 @@ import type { GroupePanier } from "@/lib/panier";
 import type { Adresse } from "@/types/domain";
 
 export type ModeLivraison = "standard" | "express";
-export type MoyenPaiement = "KONNECT" | "A_LA_LIVRAISON";
+export type MoyenPaiement = "CARTE" | "A_LA_LIVRAISON";
 
 /** Étape 1 — adresse : cartes sélectionnables + « Nouvelle adresse » (slot fourni par la page). */
 export function AddressStep({ adresses, valeur, onChange, nouvelleAdresse }: { adresses: Adresse[]; valeur: string; onChange: (id: string) => void; nouvelleAdresse?: React.ReactNode }) {
@@ -65,13 +64,13 @@ export function DeliveryStep({ groupes, modes, onChange }: { groupes: GroupePani
   );
 }
 
-/** Étape 3 — paiement : carte (Konnect / Flouci) ou à la livraison. Saisie VISUELLE, paiement simulé. */
+/** Étape 3 — paiement : carte bancaire via Stripe (page sécurisée hébergée) ou à la livraison. */
 export function PaymentStep({ valeur, onChange }: { valeur: MoyenPaiement; onChange: (m: MoyenPaiement) => void }) {
   return (
     <div className="space-y-4">
       <RadioGroup value={valeur} onValueChange={(v) => onChange(v as MoyenPaiement)} className="grid gap-3 sm:grid-cols-2" aria-label="Moyen de paiement">
         {[
-          { v: "KONNECT" as const, t: "Carte bancaire", d: "Konnect / Flouci · Visa, Mastercard, e-dinar", icon: CreditCard },
+          { v: "CARTE" as const, t: "Carte bancaire", d: "Visa, Mastercard · paiement sécurisé Stripe", icon: CreditCard },
           { v: "A_LA_LIVRAISON" as const, t: "Paiement à la livraison", d: "En espèces, à réception de chaque colis", icon: Banknote },
         ].map((o) => (
           <Label key={o.v} htmlFor={`pay-${o.v}`} className={cn("flex cursor-pointer items-start gap-3 rounded-2xl border-2 bg-card p-4", valeur === o.v ? "border-brand-fill" : "border-border")}>
@@ -84,25 +83,17 @@ export function PaymentStep({ valeur, onChange }: { valeur: MoyenPaiement; onCha
           </Label>
         ))}
       </RadioGroup>
-      {valeur === "KONNECT" && (
-        <div className="space-y-3 rounded-2xl border bg-card p-4">
+      {valeur === "CARTE" && (
+        <div className="space-y-2 rounded-2xl border bg-card p-4 text-[13px] text-muted-foreground">
           <p className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2.5 py-1 text-[12px] font-semibold text-accent-foreground">
-            <Lock className="size-3.5" aria-hidden /> Paiement simulé — aucune donnée n&apos;est transmise
+            <Lock className="size-3.5" aria-hidden /> Paiement sécurisé par Stripe
           </p>
-          <div className="space-y-1.5">
-            <Label htmlFor="cb-num">Numéro de carte</Label>
-            <Input id="cb-num" inputMode="numeric" placeholder="4242 4242 4242 4242" autoComplete="off" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="cb-exp">Expiration</Label>
-              <Input id="cb-exp" placeholder="MM / AA" autoComplete="off" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="cb-cvc">Cryptogramme</Label>
-              <Input id="cb-cvc" placeholder="123" autoComplete="off" />
-            </div>
-          </div>
+          <p>
+            Après confirmation, vous serez redirigé vers la page de paiement Stripe. Vos données de carte ne transitent jamais par DEGLA. Le montant est débité en euros au taux en vigueur.
+          </p>
+          <p>
+            Mode test : carte <span className="font-mono text-foreground">4242 4242 4242 4242</span>, date future, n&apos;importe quel cryptogramme.
+          </p>
         </div>
       )}
     </div>
@@ -144,7 +135,7 @@ export function ReviewStep({ groupes, adresse, paiement, modes }: { groupes: Gro
         {adresse && <AddressCard adresse={adresse} />}
         <div className="rounded-2xl border bg-card p-4 text-sm">
           <p className="font-semibold">Paiement</p>
-          <p className="text-muted-foreground">{paiement === "KONNECT" ? "Carte bancaire (Konnect / Flouci) — simulé" : "Paiement à la livraison"}</p>
+          <p className="text-muted-foreground">{paiement === "CARTE" ? "Carte bancaire (Stripe)" : "Paiement à la livraison"}</p>
         </div>
       </div>
     </div>

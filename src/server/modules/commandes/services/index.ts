@@ -2,6 +2,7 @@
 export * from "./panier";
 export * from "./commandes";
 export * from "./paiements";
+export * from "./codes-promo";
 export * from "./factures";
 export * from "./ventes";
 export * from "./avis";

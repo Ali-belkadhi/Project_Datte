@@ -9,9 +9,14 @@ import { formatPoids, formatPrix } from "@/lib/format";
 import type { Commande } from "@/types/domain";
 import { ReviewForm } from "../avis/review-form";
 import { DisputeDialog } from "../litiges/dispute-dialog";
+import { CancelOrderButton, RetryPaymentButton } from "./order-client-actions";
+
+const ANNULABLE = ["EN_ATTENTE", "ACCEPTEE", "EN_PREPARATION"];
 
 /** Détail d'une commande acheteur : timeline, une carte par sous-commande, adresse, paiement, facture. */
-export function OrderDetail({ commande: c }: { commande: Commande }) {
+export function OrderDetail({ commande: c, lignesNotees = [], facture = null }: { commande: Commande; lignesNotees?: string[]; facture?: string | null }) {
+  const enAttentePaiement = c.statut === "EN_ATTENTE_PAIEMENT" && c.methodePaiement !== "A_LA_LIVRAISON";
+  const payeeCarte = c.methodePaiement !== "A_LA_LIVRAISON" && !enAttentePaiement;
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
       <div className="space-y-4">
@@ -48,7 +53,7 @@ export function OrderDetail({ commande: c }: { commande: Commande }) {
                     </p>
                   </div>
                   <span className="font-semibold tabular-nums">{formatPrix(l.total)}</span>
-                  {s.statut === "LIVREE" && <ReviewForm ligneCommandeId={l.id} produitNom={l.nomProduit} />}
+                  {s.statut === "LIVREE" && !lignesNotees.includes(l.id) && <ReviewForm ligneCommandeId={l.id} produitNom={l.nomProduit} />}
                 </li>
               ))}
             </ul>
@@ -56,7 +61,10 @@ export function OrderDetail({ commande: c }: { commande: Commande }) {
               <span className="text-muted-foreground">
                 Sous-total {formatPrix(s.sousTotal)} · livraison {s.fraisLivraison ? formatPrix(s.fraisLivraison) : "offerte"}
               </span>
-              <DisputeDialog sousCommandeNumero={s.numero} trigger={<Button variant="ghost" size="sm" className="text-danger hover:bg-danger-soft hover:text-danger"><Flag aria-hidden /> Signaler un problème</Button>} />
+              {ANNULABLE.includes(s.statut) && !enAttentePaiement && c.sousCommandes.length > 1 && <CancelOrderButton numero={s.numero} libelle="Annuler ce colis" paye={payeeCarte} />}
+              {["EXPEDIEE", "LIVREE"].includes(s.statut) && (
+                <DisputeDialog sousCommandeNumero={s.numero} trigger={<Button variant="ghost" size="sm" className="text-danger hover:bg-danger-soft hover:text-danger"><Flag aria-hidden /> Signaler un problème</Button>} />
+              )}
             </footer>
           </section>
         ))}
@@ -99,9 +107,19 @@ export function OrderDetail({ commande: c }: { commande: Commande }) {
               <dd className="font-display tabular-nums">{formatPrix(c.total)}</dd>
             </div>
           </dl>
-          <Button variant="outline" size="sm" className="w-full">
-            <FileText aria-hidden /> Télécharger la facture
-          </Button>
+          {enAttentePaiement && <RetryPaymentButton numero={c.numero} className="w-full" />}
+          {(facture || ["PAYEE", "PARTIELLEMENT_LIVREE", "LIVREE"].includes(c.statut)) && (
+            <Button asChild variant="outline" size="sm" className="w-full">
+              <a href={`/api/factures/${c.numero}`} target="_blank" rel="noopener">
+                <FileText aria-hidden /> Télécharger la facture{facture ? ` ${facture}` : ""}
+              </a>
+            </Button>
+          )}
+          {c.sousCommandes.some((s) => ANNULABLE.includes(s.statut)) && (
+            <div className="flex justify-center">
+              <CancelOrderButton numero={c.numero} libelle="Annuler la commande" paye={payeeCarte} />
+            </div>
+          )}
         </div>
       </aside>
     </div>

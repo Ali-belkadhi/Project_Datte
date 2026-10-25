@@ -24,6 +24,7 @@ import {
   Sparkles,
   Star,
   Store,
+  TicketPercent,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -149,7 +150,9 @@ export const adminNav: NavItem[] = [
   { href: "/admin/fournisseurs", label: "Fournisseurs", icon: BadgeCheck, badge: "3" },
   { href: "/admin/varietes", label: "Variétés", icon: Palmtree },
   { href: "/admin/moderation", label: "Modération", icon: Flag },
+  { href: "/admin/commandes", label: "Commandes", icon: Receipt },
   { href: "/admin/litiges", label: "Litiges", icon: Scale },
+  { href: "/admin/codes-promo", label: "Codes promo", icon: TicketPercent },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings },
 ];
 

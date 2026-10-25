@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
@@ -14,7 +14,7 @@ import { useAction } from "@/hooks/use-action";
 import { useMounted } from "@/hooks/use-mounted";
 import { useCartStore } from "@/stores/cart-store";
 import type { Adresse } from "@/types/domain";
-import { passerCommande } from "@/server/modules/commandes/actions";
+import { appliquerCodePromo, passerCommande } from "@/server/modules/commandes/actions";
 import { CartSummary } from "../panier/cart-summary";
 import { AddressStep, DeliveryStep, PaymentStep, ReviewStep, type ModeLivraison, type MoyenPaiement } from "./checkout-steps";
 
@@ -26,16 +26,38 @@ export function CheckoutStepper({ adresses, nouvelleAdresse }: { adresses: Adres
   const mounted = useMounted();
   const lignes = useCartStore((s) => s.lignes);
   const vider = useCartStore((s) => s.vider);
+  const codePromo = useCartStore((s) => s.codePromo);
+  const [remise, setRemise] = useState(0);
+  const [redirection, setRedirection] = useState(false);
   const [etape, setEtape] = useState(0);
   const [adresseId, setAdresseId] = useState(adresses.find((a) => a.parDefaut)?.id ?? adresses[0]?.id ?? "");
   const [modes, setModes] = useState<Record<string, ModeLivraison>>({});
-  const [paiement, setPaiement] = useState<MoyenPaiement>("KONNECT");
+  const [paiement, setPaiement] = useState<MoyenPaiement>("CARTE");
   const { run, pending } = useAction(passerCommande, {
+    silencieux: true,
     onSuccess: ({ numero, urlPaiement }) => {
-      router.push(urlPaiement ?? `/commande/confirmation?numero=${numero}`);
-      setTimeout(vider, 400);
+      setRedirection(true);
+      vider();
+      // carte : page de paiement Stripe (externe) ; à la livraison : confirmation directe
+      if (urlPaiement) window.location.assign(urlPaiement);
+      else router.push(`/commande/confirmation?numero=${numero}`);
     },
   });
+  const promo = useAction(appliquerCodePromo, {
+    silencieux: true,
+    onSuccess: (d) => setRemise(d.valide ? d.remise : 0),
+  });
+  const lignesAction = lignes.map((l) => ({ produitId: l.produitId, quantiteGrammes: l.quantiteGrammes, quantiteUnites: l.quantiteUnites }));
+  const cleLignes = JSON.stringify(lignesAction);
+  // le code promo saisi au panier est réévalué par le serveur sur les lignes actuelles
+  useEffect(() => {
+    if (codePromo && lignesAction.length) void promo.run({ code: codePromo, lignes: lignesAction });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codePromo, cleLignes]);
+
+  if (redirection) {
+    return <p className="py-16 text-center text-muted-foreground">Redirection vers le paiement sécurisé…</p>;
+  }
 
   if (mounted && lignes.length === 0) {
     return (
@@ -57,7 +79,8 @@ export function CheckoutStepper({ adresses, nouvelleAdresse }: { adresses: Adres
   const suivant = () => {
     if (etape < 3) return setEtape(etape + 1);
     void run({
-      lignes: lignes.map((l) => ({ produitId: l.produitId, quantiteGrammes: l.quantiteGrammes, quantiteUnites: l.quantiteUnites })),
+      lignes: lignesAction,
+      codePromo: remise > 0 && codePromo ? codePromo : undefined,
       adresseId, livraison: Object.fromEntries(t.groupes.map((g) => [g.fournisseurId, modes[g.fournisseurId] ?? "standard"])), methodePaiement: paiement });
   };
 
@@ -86,15 +109,15 @@ export function CheckoutStepper({ adresses, nouvelleAdresse }: { adresses: Adres
                 Continuer <ArrowRight className="rtl:rotate-180" aria-hidden />
               </>
             ) : pending ? (
-              "Validation…"
+              paiement === "CARTE" ? "Redirection vers Stripe…" : "Validation…"
             ) : (
-              `Confirmer et payer ${formatPrix(t.sousTotal + livraison)}`
+              `Confirmer et payer ${formatPrix(Math.max(0, t.sousTotal + livraison - remise))}`
             )}
           </Button>
         </div>
       </div>
       <aside className="hidden lg:sticky lg:top-24 lg:block">
-        <CartSummary sousTotal={t.sousTotal} livraison={livraison} remise={0} colis={t.groupes.length} cta={null} promo={false} />
+        <CartSummary sousTotal={t.sousTotal} livraison={livraison} remise={remise} colis={t.groupes.length} cta={null} promo={false} />
       </aside>
     </div>
   );

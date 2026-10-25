@@ -1,134 +1,211 @@
 "use server";
-// MODULE C — Commandes (Karim Ouertatani) — points d'entrée des mutations
+// MODULE C — Commandes (Karim Ouertatani) — points d'entrée des mutations.
+// Chaque action : validation Zod → contrôle du rôle → service (règles métier) → ActionResult.
 
 import { revalidatePath } from "next/cache";
 import { runAction } from "@/server/core/action";
-import { libererStock, majNoteProduit, reserverStock } from "@/server/contracts/catalogue";
-import { notifier } from "@/server/contracts/comptes";
+import { getAdresses } from "@/server/modules/comptes/services/utilisateurs";
+import { NotFoundError } from "@/server/core/errors";
+import { getProduitsPourPanier } from "@/server/contracts/catalogue";
+import { ligneDepuisProduit, scinderParFournisseur } from "@/lib/panier";
 import {
   annulationSchema,
   avisSchema,
+  basculeCodePromoSchema,
   checkoutSchema,
+  codePromoAdminSchema,
   codePromoSchema,
-  confirmationPaiementSchema,
   expeditionSchema,
   lignePanierSchema,
   litigeSchema,
   majLignePanierSchema,
   refusSousCommandeSchema,
   reponseAvisSchema,
+  reprisePaiementSchema,
   resolutionLitigeSchema,
+  retraitLignePanierSchema,
   sousCommandeSchema,
 } from "@/lib/validation/commandes";
-import { getAdresses } from "@/server/modules/comptes/services/utilisateurs";
-import { NotFoundError } from "@/server/core/errors";
-import { creerCommande, lierPaiement } from "./services/commandes";
-import { confirmerPaiement, initierPaiement } from "./services/paiements";
+import { laisserAvis as _laisserAvis, repondreAvis as _repondreAvis } from "./services/avis";
+import { basculerCodePromo as _basculerCode, creerCodePromo as _creerCode, evaluerCodePromo } from "./services/codes-promo";
+import {
+  accepterColis,
+  annulerParClient,
+  creerCommande,
+  expedierColis,
+  livrerColis,
+  preparerColis,
+  refuserColis,
+  reprendrePaiement as _reprendrePaiement,
+} from "./services/commandes";
+import { ouvrirLitige as _ouvrirLitige, resoudreLitige as _resoudreLitige } from "./services/litiges";
+import { ajouterLigne, memoriserCodePromo, modifierLigne, retirerLigne, viderPanier } from "./services/panier";
 
 /* -------------------------------- Panier -------------------------------- */
 
 export async function ajouterAuPanier(input: unknown) {
-  // TODO(module C) : upsert LignePanier (panier visiteur via sessionId, fusion à la connexion)
-  return runAction(lignePanierSchema, input, ["CLIENT"], async (d) => ({ produitId: d.produitId }), "Ajouté au panier");
+  return runAction(lignePanierSchema, input, ["CLIENT"], async (d) => ajouterLigne(d), "Ajouté au panier");
 }
 
+/** `ligneId` = identifiant du produit (une ligne par produit dans un panier). */
 export async function majLignePanier(input: unknown) {
-  return runAction(majLignePanierSchema, input, ["CLIENT"], async (d) => ({ ligneId: d.ligneId }), "Panier mis à jour");
+  return runAction(majLignePanierSchema, input, ["CLIENT"], async (d) => {
+    await modifierLigne(d.ligneId, { quantiteGrammes: d.quantiteGrammes, quantiteUnites: d.quantiteUnites });
+    return { ligneId: d.ligneId };
+  }, "Panier mis à jour");
 }
 
+export async function retirerDuPanier(input: unknown) {
+  return runAction(retraitLignePanierSchema, input, ["CLIENT"], async (d) => {
+    await retirerLigne(d.produitId);
+    return { produitId: d.produitId };
+  }, "Article retiré");
+}
+
+/** Vérifie un code promo sur les lignes du panier et le mémorise pour le checkout. */
 export async function appliquerCodePromo(input: unknown) {
-  // TODO(module C) : CodePromo.estValide(panier) + calculerRemise(montant)
   return runAction(codePromoSchema, input, ["CLIENT"], async (d) => {
-    const valide = d.code === "DEGLA10";
-    return { code: d.code, valide, remisePourcentage: valide ? 10 : 0 };
-  }, "Code appliqué (démo)");
+    const lignes = d.lignes ?? [];
+    const produits = await getProduitsPourPanier(lignes.map((l) => l.produitId));
+    const lignesPanier = lignes.flatMap((l) => {
+      const p = produits.find((x) => x.produit.id === l.produitId);
+      return p ? [{ id: l.produitId, ...ligneDepuisProduit(p, l) }] : [];
+    });
+    const r = await evaluerCodePromo(d.code, scinderParFournisseur(lignesPanier));
+    await memoriserCodePromo(r.valide ? r.code : null);
+    return { code: r.code, valide: r.valide, remise: r.remise, message: r.message };
+  });
+}
+
+export async function retirerCodePromo() {
+  await memoriserCodePromo(null);
 }
 
 /* ------------------------------- Checkout ------------------------------- */
 
+/**
+ * Crée la commande puis renvoie l'URL de paiement Stripe (carte) ou null (paiement à la livraison).
+ * Le panier serveur est vidé : la commande est enregistrée, même si le paiement est abandonné ensuite.
+ */
 export async function passerCommande(input: unknown) {
   return runAction(checkoutSchema, input, ["CLIENT"], async (d) => {
     const adresse = (await getAdresses()).find((a) => a.id === d.adresseId);
-    if (!adresse) throw new NotFoundError("Adresse introuvable.");
-    const commande = await creerCommande({ lignes: d.lignes, adresse, livraison: d.livraison, methodePaiement: d.methodePaiement });
-    if (d.methodePaiement === "A_LA_LIVRAISON") {
-      return { numero: commande.numero, urlPaiement: null };
-    }
-    const paiement = await initierPaiement(commande.total, { type: "COMMANDE", reference: commande.numero }, d.methodePaiement);
-    await lierPaiement(commande.numero, paiement.reference);
+    if (!adresse) throw new NotFoundError("adresse de livraison");
+    const r = await creerCommande({ lignes: d.lignes, adresse, livraison: d.livraison, methodePaiement: d.methodePaiement, codePromo: d.codePromo });
+    await viderPanier();
     revalidatePath("/compte/commandes");
-    return { numero: commande.numero, urlPaiement: paiement.urlPaiement };
+    return r;
   }, "Commande enregistrée");
 }
 
-/** Confirmation depuis la page de paiement simulée (remplacée par le webhook de la vraie passerelle). */
-export async function confirmerPaiementSimule(input: unknown) {
-  return runAction(confirmationPaiementSchema, input, ["CLIENT"], async (d) => {
-    const p = await confirmerPaiement(d.reference, d.statut);
-    if (!p) throw new NotFoundError("Paiement introuvable ou déjà traité.");
-    revalidatePath("/compte/commandes");
-    return { numero: p.objet.reference, statut: p.statut };
-  }, input && (input as { statut?: string }).statut === "ECHOUE" ? "Paiement annulé" : "Paiement réussi");
+/** Relance le paiement d'une commande restée « en attente de paiement ». */
+export async function reprendrePaiement(input: unknown) {
+  return runAction(reprisePaiementSchema, input, ["CLIENT"], async (d) => _reprendrePaiement(d.numero), "Redirection vers le paiement…");
 }
 
+/** Annulation par le client (commande entière ou un colis), avec remboursement Stripe automatique. */
 export async function annulerCommande(input: unknown) {
   return runAction(annulationSchema, input, ["CLIENT"], async (d) => {
-    await libererStock([]);
+    const r = await annulerParClient(d.numero, d.motif);
     revalidatePath("/compte/commandes");
-    return { numero: d.numero };
-  }, "Commande annulée (démo)");
+    return r;
+  }, "Commande annulée");
 }
 
 /* ------------------------- Sous-commandes (vendeur) ---------------------- */
 
+const revalidateVendeur = (numero: string) => {
+  revalidatePath("/vendeur/commandes");
+  revalidatePath(`/vendeur/commandes/${numero}`);
+  revalidatePath("/vendeur");
+};
+
 export async function accepterSousCommande(input: unknown) {
   return runAction(sousCommandeSchema, input, ["FOURNISSEUR"], async (d) => {
-    await notifier("u-sarra", "COMMANDE_STATUT", { numero: d.numero, statut: "ACCEPTEE" });
-    revalidatePath("/vendeur/commandes");
+    await accepterColis(d.numero);
+    revalidateVendeur(d.numero);
     return { numero: d.numero, statut: "ACCEPTEE" as const };
-  }, "Commande acceptée (démo)");
+  }, "Commande acceptée");
 }
 
 export async function preparerSousCommande(input: unknown) {
-  return runAction(sousCommandeSchema, input, ["FOURNISSEUR"], async (d) => ({ numero: d.numero, statut: "EN_PREPARATION" as const }), "Commande en préparation (démo)");
+  return runAction(sousCommandeSchema, input, ["FOURNISSEUR"], async (d) => {
+    await preparerColis(d.numero);
+    revalidateVendeur(d.numero);
+    return { numero: d.numero, statut: "EN_PREPARATION" as const };
+  }, "Commande en préparation");
 }
 
 export async function refuserSousCommande(input: unknown) {
   return runAction(refusSousCommandeSchema, input, ["FOURNISSEUR"], async (d) => {
-    await libererStock([]);
+    await refuserColis(d.numero, d.motif);
+    revalidateVendeur(d.numero);
     return { numero: d.numero, statut: "REFUSEE" as const };
-  }, "Commande refusée (démo)");
+  }, "Commande refusée — le client est remboursé");
 }
 
 export async function expedierSousCommande(input: unknown) {
   return runAction(expeditionSchema, input, ["FOURNISSEUR"], async (d) => {
-    await notifier("u-sarra", "COMMANDE_STATUT", { numero: d.numero, statut: "EXPEDIEE", suivi: d.numeroSuivi });
+    await expedierColis(d.numero, d.transporteur, d.numeroSuivi);
+    revalidateVendeur(d.numero);
     return { numero: d.numero, statut: "EXPEDIEE" as const };
-  }, "Commande expédiée (démo)");
+  }, "Commande expédiée");
+}
+
+export async function livrerSousCommande(input: unknown) {
+  return runAction(sousCommandeSchema, input, ["FOURNISSEUR"], async (d) => {
+    await livrerColis(d.numero);
+    revalidateVendeur(d.numero);
+    return { numero: d.numero, statut: "LIVREE" as const };
+  }, "Livraison confirmée");
 }
 
 /* --------------------------------- Avis --------------------------------- */
 
 export async function laisserAvis(input: unknown) {
   return runAction(avisSchema, input, ["CLIENT"], async (d) => {
-    await majNoteProduit(d.ligneCommandeId);
-    return { id: "av-demo" };
-  }, "Merci pour votre avis (démo)");
+    const r = await _laisserAvis(d);
+    revalidatePath("/compte/commandes");
+    return r;
+  }, "Merci pour votre avis");
 }
 
 export async function repondreAvis(input: unknown) {
-  return runAction(reponseAvisSchema, input, ["FOURNISSEUR"], async (d) => ({ avisId: d.avisId }), "Réponse publiée (démo)");
+  return runAction(reponseAvisSchema, input, ["FOURNISSEUR"], async (d) => {
+    const r = await _repondreAvis(d.avisId, d.reponse);
+    revalidatePath("/vendeur/avis");
+    return r;
+  }, "Réponse publiée");
 }
 
 /* -------------------------------- Litiges ------------------------------- */
 
 export async function ouvrirLitige(input: unknown) {
-  return runAction(litigeSchema, input, ["CLIENT"], async () => ({ numero: "LIT-2026-0043" }), "Signalement envoyé (démo)");
+  return runAction(litigeSchema, input, ["CLIENT"], async (d) => _ouvrirLitige(d), "Signalement envoyé à l'équipe DEGLA");
 }
 
 export async function resoudreLitige(input: unknown) {
   return runAction(resolutionLitigeSchema, input, ["ADMIN"], async (d) => {
+    const r = await _resoudreLitige(d);
     revalidatePath("/admin/litiges");
-    return { id: d.litigeId, statut: d.decision };
-  }, "Décision enregistrée (démo)");
+    return r;
+  }, "Décision enregistrée");
+}
+
+/* ------------------------------ Codes promo ----------------------------- */
+
+export async function creerCodePromo(input: unknown) {
+  return runAction(codePromoAdminSchema, input, ["ADMIN"], async (d) => {
+    const code = await _creerCode({ ...d, fournisseurId: d.fournisseurId || null, utilisationsMax: d.utilisationsMax ?? null });
+    revalidatePath("/admin/codes-promo");
+    return { code };
+  }, "Code promo créé");
+}
+
+export async function basculerCodePromo(input: unknown) {
+  return runAction(basculeCodePromoSchema, input, ["ADMIN"], async (d) => {
+    await _basculerCode(d.code, d.actif);
+    revalidatePath("/admin/codes-promo");
+    return d;
+  }, "Code promo mis à jour");
 }
