@@ -10,6 +10,7 @@ import {
   avisSchema,
   checkoutSchema,
   codePromoSchema,
+  confirmationPaiementSchema,
   expeditionSchema,
   lignePanierSchema,
   litigeSchema,
@@ -19,7 +20,10 @@ import {
   resolutionLitigeSchema,
   sousCommandeSchema,
 } from "@/lib/validation/commandes";
-import { initierPaiement } from "./services/paiements";
+import { getAdresses } from "@/server/modules/comptes/services/utilisateurs";
+import { NotFoundError } from "@/server/core/errors";
+import { creerCommande, lierPaiement } from "./services/commandes";
+import { confirmerPaiement, initierPaiement } from "./services/paiements";
 
 /* -------------------------------- Panier -------------------------------- */
 
@@ -44,12 +48,27 @@ export async function appliquerCodePromo(input: unknown) {
 
 export async function passerCommande(input: unknown) {
   return runAction(checkoutSchema, input, ["CLIENT"], async (d) => {
-    // TODO(module C) : transaction — Commande + SousCommande par fournisseur (scinderParFournisseur),
-    // reserverStock, Paiement, puis redirection vers Konnect / Flouci.
-    await reserverStock([]);
-    const paiement = await initierPaiement(0, { type: "COMMANDE", reference: "DGL-2026-000123" });
-    return { numero: "DGL-2026-000123", methode: d.methodePaiement, paiement };
-  }, "Commande passée (démo)");
+    const adresse = (await getAdresses()).find((a) => a.id === d.adresseId);
+    if (!adresse) throw new NotFoundError("Adresse introuvable.");
+    const commande = await creerCommande({ lignes: d.lignes, adresse, livraison: d.livraison, methodePaiement: d.methodePaiement });
+    if (d.methodePaiement === "A_LA_LIVRAISON") {
+      return { numero: commande.numero, urlPaiement: null };
+    }
+    const paiement = await initierPaiement(commande.total, { type: "COMMANDE", reference: commande.numero }, d.methodePaiement);
+    await lierPaiement(commande.numero, paiement.reference);
+    revalidatePath("/compte/commandes");
+    return { numero: commande.numero, urlPaiement: paiement.urlPaiement };
+  }, "Commande enregistrée");
+}
+
+/** Confirmation depuis la page de paiement simulée (remplacée par le webhook de la vraie passerelle). */
+export async function confirmerPaiementSimule(input: unknown) {
+  return runAction(confirmationPaiementSchema, input, ["CLIENT"], async (d) => {
+    const p = await confirmerPaiement(d.reference, d.statut);
+    if (!p) throw new NotFoundError("Paiement introuvable ou déjà traité.");
+    revalidatePath("/compte/commandes");
+    return { numero: p.objet.reference, statut: p.statut };
+  }, input && (input as { statut?: string }).statut === "ECHOUE" ? "Paiement annulé" : "Paiement réussi");
 }
 
 export async function annulerCommande(input: unknown) {

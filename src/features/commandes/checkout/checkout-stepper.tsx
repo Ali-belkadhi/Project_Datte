@@ -31,8 +31,8 @@ export function CheckoutStepper({ adresses, nouvelleAdresse }: { adresses: Adres
   const [modes, setModes] = useState<Record<string, ModeLivraison>>({});
   const [paiement, setPaiement] = useState<MoyenPaiement>("KONNECT");
   const { run, pending } = useAction(passerCommande, {
-    onSuccess: () => {
-      router.push("/commande/confirmation");
+    onSuccess: ({ numero, urlPaiement }) => {
+      router.push(urlPaiement ?? `/commande/confirmation?numero=${numero}`);
       setTimeout(vider, 400);
     },
   });
@@ -56,7 +56,9 @@ export function CheckoutStepper({ adresses, nouvelleAdresse }: { adresses: Adres
   const livraison = t.groupes.reduce((a, g) => a + ((modes[g.fournisseurId] ?? "standard") === "express" ? LIVRAISON.express.prix : g.frais), 0);
   const suivant = () => {
     if (etape < 3) return setEtape(etape + 1);
-    void run({ adresseId, livraison: Object.fromEntries(t.groupes.map((g) => [g.fournisseurId, modes[g.fournisseurId] ?? "standard"])), methodePaiement: paiement });
+    void run({
+      lignes: lignes.map((l) => ({ produitId: l.produitId, quantiteGrammes: l.quantiteGrammes, quantiteUnites: l.quantiteUnites })),
+      adresseId, livraison: Object.fromEntries(t.groupes.map((g) => [g.fournisseurId, modes[g.fournisseurId] ?? "standard"])), methodePaiement: paiement });
   };
 
   return (

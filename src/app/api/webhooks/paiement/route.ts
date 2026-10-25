@@ -1,10 +1,13 @@
-// MODULE C — stub : répond 501 Not Implemented.
-// TODO(module C) : vérifier la signature, Paiement → REUSSI/ECHOUE, Commande → PAYEE, notifier les vendeurs, ou libererStock en cas d'échec.
+// MODULE C — webhook de la passerelle de paiement.
+// Corps attendu (à adapter à l'API choisie) : { reference, statut: "REUSSI" | "ECHOUE" }.
+// TODO(module C) : vérifier la signature de la passerelle avant de confirmer.
+import { confirmationPaiementSchema } from "@/lib/validation/commandes";
+import { confirmerPaiement } from "@/server/modules/commandes/services/paiements";
 
-const nonImplemente = () =>
-  Response.json(
-    { error: "NOT_IMPLEMENTED", module: "C", description: "Confirmation de paiement Konnect / Flouci" },
-    { status: 501 },
-  );
-
-export const POST = nonImplemente;
+export async function POST(request: Request) {
+  const parsed = confirmationPaiementSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return Response.json({ error: "VALIDATION" }, { status: 400 });
+  const p = await confirmerPaiement(parsed.data.reference, parsed.data.statut);
+  if (!p) return Response.json({ error: "NOT_FOUND" }, { status: 404 });
+  return Response.json({ ok: true, reference: p.reference, statut: p.statut });
+}

@@ -28,6 +28,9 @@ export const codePromoSchema = z.object({
 });
 
 export const checkoutSchema = z.object({
+  lignes: z
+    .array(z.object({ produitId: z.string().min(1), quantiteGrammes: z.number().int().positive().optional(), quantiteUnites: z.number().int().positive().optional() }))
+    .min(1, "Votre panier est vide."),
   adresseId: z.string().min(1, "Choisissez une adresse."),
   livraison: z.record(z.string(), z.enum(["standard", "express"])),
   methodePaiement: z.enum(["KONNECT", "FLOUCI", "CARTE", "A_LA_LIVRAISON"]),
@@ -75,3 +78,5 @@ export const resolutionLitigeSchema = z.object({
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type AvisInput = z.infer<typeof avisSchema>;
 export type ExpeditionInput = z.infer<typeof expeditionSchema>;
+
+export const confirmationPaiementSchema = z.object({ reference: z.string().min(1), statut: z.enum(["REUSSI", "ECHOUE"]) });

@@ -7,9 +7,10 @@ import { getUtilisateurCourant } from "@/server/modules/comptes/services/utilisa
 
 export const metadata = pageMetadata("Commande confirmée");
 
-/** Confirmation de commande (module C) — commande de démonstration DGL-2026-000123. */
-export default async function ConfirmationPage() {
-  const [commande, u] = await Promise.all([getCommande("DGL-2026-000123"), getUtilisateurCourant()]);
+/** Confirmation de commande (module C) — commande ?numero=… (MongoDB), repli sur la démo. */
+export default async function ConfirmationPage({ searchParams }: { searchParams: Promise<{ numero?: string }> }) {
+  const { numero = "DGL-2026-000123" } = await searchParams;
+  const [commande, u] = await Promise.all([getCommande(numero), getUtilisateurCourant()]);
   if (!commande) notFound();
   return (
     <Container className="py-12 md:py-20">
