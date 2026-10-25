@@ -8,6 +8,7 @@ import { getAdresses } from "@/server/modules/comptes/services/utilisateurs";
 import { NotFoundError } from "@/server/core/errors";
 import { getProduitsPourPanier } from "@/server/contracts/catalogue";
 import { ligneDepuisProduit, scinderParFournisseur } from "@/lib/panier";
+import type { Adresse } from "@/types/domain";
 import {
   annulationSchema,
   avisSchema,
@@ -25,6 +26,7 @@ import {
   resolutionLitigeSchema,
   retraitLignePanierSchema,
   sousCommandeSchema,
+  type CheckoutInput,
 } from "@/lib/validation/commandes";
 import { laisserAvis as _laisserAvis, repondreAvis as _repondreAvis } from "./services/avis";
 import { basculerCodePromo as _basculerCode, creerCodePromo as _creerCode, evaluerCodePromo } from "./services/codes-promo";
@@ -83,15 +85,28 @@ export async function retirerCodePromo() {
 
 /* ------------------------------- Checkout ------------------------------- */
 
+/** Adresse enregistrée du client (contrat A) ou adresse saisie / choisie sur la carte au checkout. */
+async function adresseDeLivraison(d: CheckoutInput): Promise<{ adresse: Adresse; position?: { latitude: number; longitude: number } }> {
+  if (d.adresseLivraison) {
+    const { latitude, longitude, ...a } = d.adresseLivraison;
+    return {
+      adresse: { ...a, id: "adresse-checkout", libelle: latitude !== undefined ? "Adresse choisie sur la carte" : "Adresse de livraison", parDefaut: false },
+      position: latitude !== undefined && longitude !== undefined ? { latitude, longitude } : undefined,
+    };
+  }
+  const adresse = (await getAdresses()).find((a) => a.id === d.adresseId);
+  if (!adresse) throw new NotFoundError("adresse de livraison");
+  return { adresse };
+}
+
 /**
  * Crée la commande puis renvoie l'URL de paiement Stripe (carte) ou null (paiement à la livraison).
  * Le panier serveur est vidé : la commande est enregistrée, même si le paiement est abandonné ensuite.
  */
 export async function passerCommande(input: unknown) {
   return runAction(checkoutSchema, input, ["CLIENT"], async (d) => {
-    const adresse = (await getAdresses()).find((a) => a.id === d.adresseId);
-    if (!adresse) throw new NotFoundError("adresse de livraison");
-    const r = await creerCommande({ lignes: d.lignes, adresse, livraison: d.livraison, methodePaiement: d.methodePaiement, codePromo: d.codePromo });
+    const { adresse, position } = await adresseDeLivraison(d);
+    const r = await creerCommande({ lignes: d.lignes, adresse, position, livraison: d.livraison, methodePaiement: d.methodePaiement, codePromo: d.codePromo });
     await viderPanier();
     revalidatePath("/compte/commandes");
     return r;

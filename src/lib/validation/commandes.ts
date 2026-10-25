@@ -2,6 +2,7 @@
  * MODULE C — schémas Zod partagés client + serveur (Karim Ouertatani).
  */
 import { z } from "zod";
+import { GOUVERNORATS } from "@/types/enums";
 
 export const lignePanierSchema = z
   .object({
@@ -33,13 +34,35 @@ const lignesSchema = z
 
 export const codePromoSchema = z.object({ code: codeSchema, lignes: lignesSchema.optional() });
 
-export const checkoutSchema = z.object({
-  lignes: lignesSchema,
-  adresseId: z.string().min(1, "Choisissez une adresse."),
-  livraison: z.record(z.string(), z.enum(["standard", "express"])),
-  methodePaiement: z.enum(["KONNECT", "FLOUCI", "CARTE", "A_LA_LIVRAISON"]),
-  codePromo: codeSchema.optional(),
+/** Adresse saisie au checkout (à la main ou choisie sur la carte). Coordonnées facultatives. */
+export const adresseLivraisonSchema = z.object({
+  destinataire: z.string().trim().min(2, "Nom du destinataire requis."),
+  telephone: z
+    .string()
+    .trim()
+    .regex(/^(\+216\s?)?[2-9]\d(\s?\d{3}){2}$/, "Numéro tunisien attendu (ex. +216 22 345 678)."),
+  ligne1: z.string().trim().min(4, "Adresse requise."),
+  ligne2: z.string().trim().max(120).optional(),
+  ville: z.string().trim().min(2, "Ville requise."),
+  codePostal: z.string().regex(/^\d{4}$/, "Code postal à 4 chiffres."),
+  gouvernorat: z.enum(GOUVERNORATS, { error: "Choisissez un gouvernorat." }),
+  // bornes larges autour de la Tunisie
+  latitude: z.number().min(30, "Le point de livraison doit être en Tunisie.").max(38, "Le point de livraison doit être en Tunisie.").optional(),
+  longitude: z.number().min(7, "Le point de livraison doit être en Tunisie.").max(12, "Le point de livraison doit être en Tunisie.").optional(),
 });
+
+export const checkoutSchema = z
+  .object({
+    lignes: lignesSchema,
+    /** Adresse enregistrée du client… */
+    adresseId: z.string().min(1).optional(),
+    /** …ou adresse saisie / choisie sur la carte. */
+    adresseLivraison: adresseLivraisonSchema.optional(),
+    livraison: z.record(z.string(), z.enum(["standard", "express"])),
+    methodePaiement: z.enum(["KONNECT", "FLOUCI", "CARTE", "A_LA_LIVRAISON"]),
+    codePromo: codeSchema.optional(),
+  })
+  .refine((c) => c.adresseId || c.adresseLivraison, { message: "Choisissez une adresse de livraison.", path: ["adresseId"] });
 
 export const reprisePaiementSchema = z.object({ numero: z.string().min(1) });
 
@@ -81,6 +104,7 @@ export const resolutionLitigeSchema = z.object({
   commentaire: z.string().trim().optional(),
 });
 
+export type AdresseLivraisonInput = z.infer<typeof adresseLivraisonSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type AvisInput = z.infer<typeof avisSchema>;
 export type ExpeditionInput = z.infer<typeof expeditionSchema>;

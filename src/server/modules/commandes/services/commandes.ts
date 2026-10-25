@@ -101,6 +101,7 @@ type EntreeCommande = {
   livraison: Record<string, "standard" | "express">;
   methodePaiement: MethodePaiement;
   codePromo?: string;
+  position?: { latitude: number; longitude: number };
 };
 
 /**
@@ -108,7 +109,7 @@ type EntreeCommande = {
  * prix recalculés côté serveur (contrat B), scission par fournisseur, code promo, commission,
  * réservation du stock, puis paiement (Stripe ou à la livraison).
  */
-export async function creerCommande({ lignes, adresse, livraison, methodePaiement, codePromo }: EntreeCommande) {
+export async function creerCommande({ lignes, adresse, livraison, methodePaiement, codePromo, position }: EntreeCommande) {
   const u = await getUtilisateurCourant();
   const produits = await getProduitsPourPanier(lignes.map((l) => l.produitId));
   const lignesPanier: LignePanier[] = lignes.map((l) => {
@@ -181,6 +182,7 @@ export async function creerCommande({ lignes, adresse, livraison, methodePaiemen
     remise,
     total: Math.max(0, sousTotal + fraisLivraison - remise),
     codePromo: promo?.valide ? promo.code : undefined,
+    position,
   };
 
   await (await db.commandes()).insertOne({ ...commande });
@@ -371,6 +373,18 @@ export async function getSousCommande(numero: string) {
   if (u.role === "FOURNISSEUR" && s.fournisseurId !== u.fournisseurId) return null;
   if (u.role === "CLIENT" && s.clientId !== u.id) return null;
   return versSousCommande(s);
+}
+
+/**
+ * Adresse de livraison d'un colis pour le vendeur : visible seulement une fois le colis accepté
+ * (protection des données du client), avec le point choisi sur la carte s'il existe.
+ */
+export async function adresseLivraisonVendeur(numero: string) {
+  const { fournisseurId } = await fournisseurCourant();
+  const s = await (await db.sousCommandes()).findOne({ numero, fournisseurId });
+  if (!s || ["EN_ATTENTE", "REFUSEE", "ANNULEE"].includes(s.statut)) return null;
+  const c = await (await db.commandes()).findOne({ numero: s.commandeNumero }, { projection: { adresse: 1, position: 1 } });
+  return c ? { adresse: c.adresse, position: c.position } : null;
 }
 
 /** Compteurs par statut pour les onglets « Commandes reçues ». */

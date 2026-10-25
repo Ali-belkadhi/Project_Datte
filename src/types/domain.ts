@@ -362,6 +362,8 @@ export interface Commande {
   statut: StatutCommande;
   sousCommandes: SousCommande[];
   adresse: Adresse;
+  /** Point de livraison choisi sur la carte (OpenStreetMap), si le client l'a utilisé. */
+  position?: { latitude: number; longitude: number };
   methodePaiement: MethodePaiement;
   sousTotal: number;
   fraisLivraison: number;

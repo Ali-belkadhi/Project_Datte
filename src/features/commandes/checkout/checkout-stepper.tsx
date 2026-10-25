@@ -16,7 +16,8 @@ import { useCartStore } from "@/stores/cart-store";
 import type { Adresse } from "@/types/domain";
 import { appliquerCodePromo, passerCommande } from "@/server/modules/commandes/actions";
 import { CartSummary } from "../panier/cart-summary";
-import { AddressStep, DeliveryStep, PaymentStep, ReviewStep, type ModeLivraison, type MoyenPaiement } from "./checkout-steps";
+import type { AdresseLivraisonInput } from "@/lib/validation/commandes";
+import { ADRESSE_CARTE, AddressStep, DeliveryStep, PaymentStep, ReviewStep, adresseDepuisCarte, type ModeLivraison, type MoyenPaiement } from "./checkout-steps";
 
 const ETAPES = ["Adresse", "Livraison", "Paiement", "Vérification"];
 
@@ -31,6 +32,9 @@ export function CheckoutStepper({ adresses, nouvelleAdresse }: { adresses: Adres
   const [redirection, setRedirection] = useState(false);
   const [etape, setEtape] = useState(0);
   const [adresseId, setAdresseId] = useState(adresses.find((a) => a.parDefaut)?.id ?? adresses[0]?.id ?? "");
+  // adresse choisie sur la carte (OpenStreetMap) : valide ou null tant que le formulaire est incomplet
+  const [adresseCarte, setAdresseCarte] = useState<AdresseLivraisonInput | null>(null);
+  const surCarte = adresseId === ADRESSE_CARTE;
   const [modes, setModes] = useState<Record<string, ModeLivraison>>({});
   const [paiement, setPaiement] = useState<MoyenPaiement>("CARTE");
   const { run, pending } = useAction(passerCommande, {
@@ -81,8 +85,12 @@ export function CheckoutStepper({ adresses, nouvelleAdresse }: { adresses: Adres
     void run({
       lignes: lignesAction,
       codePromo: remise > 0 && codePromo ? codePromo : undefined,
-      adresseId, livraison: Object.fromEntries(t.groupes.map((g) => [g.fournisseurId, modes[g.fournisseurId] ?? "standard"])), methodePaiement: paiement });
+      ...(surCarte && adresseCarte ? { adresseLivraison: adresseCarte } : { adresseId }),
+      livraison: Object.fromEntries(t.groupes.map((g) => [g.fournisseurId, modes[g.fournisseurId] ?? "standard"])),
+      methodePaiement: paiement,
+    });
   };
+  const adresseChoisie = surCarte ? (adresseCarte ? adresseDepuisCarte(adresseCarte) : undefined) : adresses.find((a) => a.id === adresseId);
 
   return (
     <div className="grid gap-8 pb-28 lg:grid-cols-[1fr_380px] lg:items-start lg:pb-0">
@@ -92,10 +100,12 @@ export function CheckoutStepper({ adresses, nouvelleAdresse }: { adresses: Adres
           <h2 id="etape-titre" className="font-display text-2xl font-semibold">
             {["Où livrer votre commande ?", "Comment souhaitez-vous être livré ?", "Comment souhaitez-vous payer ?", "Vérifiez votre commande"][etape]}
           </h2>
-          {etape === 0 && <AddressStep adresses={adresses} valeur={adresseId} onChange={setAdresseId} nouvelleAdresse={nouvelleAdresse} />}
+          {etape === 0 && (
+            <AddressStep adresses={adresses} valeur={adresseId} onChange={setAdresseId} nouvelleAdresse={nouvelleAdresse} adresseCarte={adresseCarte} onAdresseCarte={setAdresseCarte} />
+          )}
           {etape === 1 && <DeliveryStep groupes={t.groupes} modes={modes} onChange={(id, m) => setModes((x) => ({ ...x, [id]: m }))} />}
           {etape === 2 && <PaymentStep valeur={paiement} onChange={setPaiement} />}
-          {etape === 3 && <ReviewStep groupes={t.groupes} adresse={adresses.find((a) => a.id === adresseId)} paiement={paiement} modes={modes} />}
+          {etape === 3 && <ReviewStep groupes={t.groupes} adresse={adresseChoisie} paiement={paiement} modes={modes} />}
         </section>
         <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 flex gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur-xl lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
           {etape > 0 && (
@@ -103,7 +113,7 @@ export function CheckoutStepper({ adresses, nouvelleAdresse }: { adresses: Adres
               <ArrowLeft className="rtl:rotate-180" aria-hidden /> Retour
             </Button>
           )}
-          <Button variant="brand" size="lg" className="flex-1 lg:flex-none" onClick={suivant} disabled={pending || !adresseId}>
+          <Button variant="brand" size="lg" className="flex-1 lg:flex-none" onClick={suivant} disabled={pending || !adresseId || (surCarte && !adresseCarte)}>
             {etape < 3 ? (
               <>
                 Continuer <ArrowRight className="rtl:rotate-180" aria-hidden />

@@ -9,6 +9,7 @@ import { formatPoids, formatPrix } from "@/lib/format";
 import type { Commande } from "@/types/domain";
 import { ReviewForm } from "../avis/review-form";
 import { DisputeDialog } from "../litiges/dispute-dialog";
+import { lienCarte } from "./lien-carte";
 import { CancelOrderButton, RetryPaymentButton } from "./order-client-actions";
 
 const ANNULABLE = ["EN_ATTENTE", "ACCEPTEE", "EN_PREPARATION"];
@@ -78,9 +79,20 @@ export function OrderDetail({ commande: c, lignesNotees = [], facture = null }: 
             {c.adresse.destinataire}
             <br />
             {c.adresse.ligne1}
+            {c.adresse.ligne2 && (
+              <>
+                <br />
+                {c.adresse.ligne2}
+              </>
+            )}
             <br />
             {c.adresse.codePostal} {c.adresse.ville}, {GOUVERNORAT_LABEL[c.adresse.gouvernorat]}
           </address>
+          {c.position && (
+            <a href={lienCarte(c.position)} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 font-medium text-brand hover:underline">
+              <MapPin className="size-4" aria-hidden /> Voir le point de livraison sur la carte
+            </a>
+          )}
         </div>
         <div className="space-y-3 rounded-2xl border bg-card p-4 text-sm">
           <p className="flex items-center gap-2 font-semibold">

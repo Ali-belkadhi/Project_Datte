@@ -7,10 +7,11 @@ import { ProductIllustration } from "@/components/illustrations/product-illustra
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Timeline } from "@/components/shared/timeline";
 import { OrderActions } from "@/features/commandes/vendeur";
-import { STATUT_SOUS_COMMANDE } from "@/lib/constants";
+import { GOUVERNORAT_LABEL, STATUT_SOUS_COMMANDE } from "@/lib/constants";
 import { formatDateHeure, formatPoids, formatPrix } from "@/lib/format";
 import { pageMetadata } from "@/lib/seo";
-import { getSousCommande } from "@/server/modules/commandes/services/commandes";
+import { adresseLivraisonVendeur, getSousCommande } from "@/server/modules/commandes/services/commandes";
+import { lienCarte } from "@/features/commandes/suivi";
 
 export async function generateMetadata({ params }: { params: Promise<{ numero: string }> }): Promise<Metadata> {
   const { numero } = await params;
@@ -21,6 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ numero: s
 export default async function VendeurCommandeDetail({ params }: { params: Promise<{ numero: string }> }) {
   const { numero } = await params;
   const s = await getSousCommande(numero);
+  const livraison = s ? await adresseLivraisonVendeur(numero) : null;
   if (!s) notFound();
   return (
     <div className="space-y-6">
@@ -87,7 +89,30 @@ export default async function VendeurCommandeDetail({ params }: { params: Promis
               <p className="flex items-center gap-2 font-semibold">
                 <MapPin className="size-4 text-muted-foreground" aria-hidden /> Livraison
               </p>
-              <p className="text-muted-foreground">Adresse transmise sur le bordereau d&apos;expédition (protégée jusqu&apos;à l&apos;acceptation).</p>
+              {livraison ? (
+                <>
+                  <address className="leading-relaxed text-muted-foreground not-italic">
+                    {livraison.adresse.destinataire} · {livraison.adresse.telephone}
+                    <br />
+                    {livraison.adresse.ligne1}
+                    {livraison.adresse.ligne2 && (
+                      <>
+                        <br />
+                        {livraison.adresse.ligne2}
+                      </>
+                    )}
+                    <br />
+                    {livraison.adresse.codePostal} {livraison.adresse.ville}, {GOUVERNORAT_LABEL[livraison.adresse.gouvernorat]}
+                  </address>
+                  {livraison.position && (
+                    <a href={lienCarte(livraison.position)} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 font-medium text-brand hover:underline">
+                      <MapPin className="size-4" aria-hidden /> Point exact sur la carte
+                    </a>
+                  )}
+                </>
+              ) : (
+                <p className="text-muted-foreground">Adresse visible après acceptation de la commande (protection des données du client).</p>
+              )}
               {s.transporteur && (
                 <p className="flex items-center gap-2">
                   <Truck className="size-4 text-muted-foreground" aria-hidden /> {s.transporteur} · <span className="font-mono">{s.numeroSuivi}</span>

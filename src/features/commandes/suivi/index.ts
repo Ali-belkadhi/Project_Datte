@@ -4,3 +4,4 @@ export { OrdersList } from "./orders-list";
 export { OrderDetail } from "./order-detail";
 export { Timeline as OrderTimeline } from "@/components/shared/timeline";
 export { CancelOrderButton, RetryPaymentButton } from "./order-client-actions";
+export { lienCarte } from "./lien-carte";

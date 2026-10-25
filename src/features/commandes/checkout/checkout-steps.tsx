@@ -1,5 +1,5 @@
 "use client";
-import { Banknote, CreditCard, Lock, Package, Truck, Zap } from "lucide-react";
+import { Banknote, CreditCard, Lock, Map as MapIcon, Package, Truck, Zap } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AddressCard } from "@/components/shared/address-card";
@@ -9,12 +9,35 @@ import { formatPoids, formatPrix, totalLigne } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { GroupePanier } from "@/lib/panier";
 import type { Adresse } from "@/types/domain";
+import type { AdresseLivraisonInput } from "@/lib/validation/commandes";
+import { MapAddressForm } from "./map-address-form";
 
 export type ModeLivraison = "standard" | "express";
 export type MoyenPaiement = "CARTE" | "A_LA_LIVRAISON";
 
-/** Étape 1 — adresse : cartes sélectionnables + « Nouvelle adresse » (slot fourni par la page). */
-export function AddressStep({ adresses, valeur, onChange, nouvelleAdresse }: { adresses: Adresse[]; valeur: string; onChange: (id: string) => void; nouvelleAdresse?: React.ReactNode }) {
+/** Valeur de `AddressStep` quand le client choisit son adresse sur la carte. */
+export const ADRESSE_CARTE = "carte";
+
+/**
+ * Étape 1 — adresse : cartes sélectionnables, option « Choisir sur la carte » (OpenStreetMap)
+ * et « Nouvelle adresse » (slot fourni par la page).
+ */
+export function AddressStep({
+  adresses,
+  valeur,
+  onChange,
+  nouvelleAdresse,
+  adresseCarte,
+  onAdresseCarte,
+}: {
+  adresses: Adresse[];
+  valeur: string;
+  onChange: (id: string) => void;
+  nouvelleAdresse?: React.ReactNode;
+  adresseCarte?: AdresseLivraisonInput | null;
+  onAdresseCarte?: (a: AdresseLivraisonInput | null) => void;
+}) {
+  const parDefaut = adresses.find((a) => a.parDefaut) ?? adresses[0];
   return (
     <div className="space-y-4">
       <RadioGroup value={valeur} onValueChange={onChange} className="grid gap-3 sm:grid-cols-2" aria-label="Adresse de livraison">
@@ -24,10 +47,35 @@ export function AddressStep({ adresses, valeur, onChange, nouvelleAdresse }: { a
             <AddressCard adresse={a} selectionnee={valeur === a.id} className="hover:border-ring/60" />
           </Label>
         ))}
+        {onAdresseCarte && (
+          <Label htmlFor="adr-carte" className="block cursor-pointer">
+            <RadioGroupItem id="adr-carte" value={ADRESSE_CARTE} className="sr-only" />
+            <span
+              className={cn(
+                "flex h-full items-start gap-3 rounded-2xl border-2 bg-card p-4 hover:border-ring/60",
+                valeur === ADRESSE_CARTE ? "border-brand-fill" : "border-border",
+              )}
+            >
+              <MapIcon className="size-6 shrink-0 text-accent-foreground" aria-hidden />
+              <span>
+                <span className="block font-semibold">Choisir sur la carte</span>
+                <span className="block text-[13px] font-normal text-muted-foreground">Votre position actuelle ou un point précis, modifiable</span>
+              </span>
+            </span>
+          </Label>
+        )}
       </RadioGroup>
+      {valeur === ADRESSE_CARTE && onAdresseCarte && (
+        <MapAddressForm initial={adresseCarte ?? { destinataire: parDefaut?.destinataire, telephone: parDefaut?.telephone }} onChange={onAdresseCarte} />
+      )}
       {nouvelleAdresse}
     </div>
   );
+}
+
+/** Adresse saisie sur la carte → forme affichable (récapitulatif). */
+export function adresseDepuisCarte(a: AdresseLivraisonInput): Adresse {
+  return { ...a, id: ADRESSE_CARTE, libelle: "Adresse choisie sur la carte", parDefaut: false };
 }
 
 /** Étape 2 — livraison : options par vendeur (standard, express). */
