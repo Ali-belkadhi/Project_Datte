@@ -1,0 +1,12 @@
+{
+  "auth": {
+    "login": "Connexion",
+    "register": "Inscription",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "submit": "Valider",
+    "forgot": "Mot de passe oublié ?",
+    "verify": "Vérifier",
+    "resend": "Renvoyer le code"
+  }
+}
