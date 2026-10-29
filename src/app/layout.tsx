@@ -3,6 +3,7 @@ import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DevViewSwitcher } from "@/components/layout/dev-view-switcher";
+import { Pwa } from "@/components/pwa/pwa";
 import { siteConfig } from "@/config/site";
 import { THEME_SCRIPT } from "@/hooks/use-theme";
 import "./globals.css";
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
   description: siteConfig.description,
   applicationName: siteConfig.name,
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/favicon.svg", apple: "/icons/icon-maskable.svg" },
+  icons: { icon: "/favicon.svg", apple: "/icons/icon-192.png" },
   appleWebApp: { title: siteConfig.name, capable: true, statusBarStyle: "black-translucent" },
   openGraph: { siteName: siteConfig.name, locale: siteConfig.locale, type: "website" },
 };
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
           <DevViewSwitcher />
           <Toaster position="top-center" richColors={false} />
+          <Pwa />
         </TooltipProvider>
       </body>
     </html>

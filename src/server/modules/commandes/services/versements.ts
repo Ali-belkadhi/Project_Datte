@@ -2,6 +2,7 @@
 import "server-only";
 import type { Versement } from "@/types/domain";
 import { getUtilisateurCourant } from "@/server/contracts/comptes";
+import { ForbiddenError } from "@/server/core/errors";
 import { db, prochainNumero, SANS_ID } from "../repositories/mongo";
 
 export const TAUX_COMMISSION = 8; // % — miroir de ParametresPlateforme.tauxCommission (module A)
@@ -59,5 +60,13 @@ export async function planifierVersements(maintenant = new Date()) {
 
 /** Virement exécuté (ou échoué) : à appeler après l'ordre de virement bancaire. */
 export async function marquerVersement(id: string, statut: "EFFECTUE" | "ECHOUE") {
-  await (await db.versements()).updateOne({ id, statut: "PLANIFIE" }, { $set: { statut, dateVersement: new Date().toISOString() } });
+  const r = await (await db.versements()).updateOne({ id, statut: "PLANIFIE" }, { $set: { statut, dateVersement: new Date().toISOString() } });
+  if (!r.matchedCount) throw new ForbiddenError("Seul un versement planifié peut être marqué.");
+  // un virement échoué libère ses colis : ils seront repris au prochain calcul
+  if (statut === "ECHOUE") await (await db.sousCommandes()).updateMany({ versementId: id }, { $unset: { versementId: "" } });
+}
+
+/** Tous les versements (admin), du plus récent au plus ancien. */
+export async function tousLesVersements() {
+  return (await db.versements()).find({}, SANS_ID).sort({ periodeFin: -1 }).limit(200).toArray();
 }

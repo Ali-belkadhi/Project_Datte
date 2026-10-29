@@ -125,3 +125,21 @@ export const codePromoAdminSchema = z
   .refine((c) => c.fin > c.debut, { message: "La date de fin doit suivre la date de début.", path: ["fin"] });
 
 export const basculeCodePromoSchema = z.object({ code: codeSchema, actif: z.boolean() });
+
+export const suppressionCodePromoSchema = z.object({ code: codeSchema });
+
+/* ------------------------------ Avis : CRUD ------------------------------ */
+
+export const modificationAvisSchema = z.object({
+  avisId: z.string().min(1),
+  note: z.number().int().min(1, "Choisissez une note.").max(5),
+  commentaire: z.string().trim().min(10, "Quelques mots sur le produit (10 caractères minimum).").max(1000),
+});
+
+export const suppressionAvisSchema = z.object({ avisId: z.string().min(1) });
+
+export const moderationAvisSchema = z.object({ avisId: z.string().min(1), statut: z.enum(["VISIBLE", "MASQUE"]) });
+
+/* ------------------------------- Versements ------------------------------ */
+
+export const versementSchema = z.object({ id: z.string().min(1), statut: z.enum(["EFFECTUE", "ECHOUE"]) });

@@ -43,7 +43,8 @@ export type SousCommandeDoc = Omit<SousCommande, "etapes" | "id"> & {
 };
 
 export type LignePanierDoc = { produitId: string; quantiteGrammes?: number; quantiteUnites?: number };
-export type PanierDoc = { proprietaire: string; lignes: LignePanierDoc[]; codePromo?: string; majLe: Date };
+/** Panier : un par client (clientId) ou par visiteur (sessionId, cookie). « proprietaire » = clé unique technique. */
+export type PanierDoc = { proprietaire: string; clientId?: string | null; sessionId?: string | null; lignes: LignePanierDoc[]; codePromo?: string; majLe: Date };
 
 export type PaiementDoc = {
   reference: string;
@@ -74,8 +75,10 @@ export type CodePromoDoc = {
   actif: boolean;
 };
 
-export type FactureDoc = { numero: string; commandeNumero: string; emiseLe: Date };
-export type AvisDoc = Avis & { clientId: string | null; ligneCommandeId: string; statut: "VISIBLE" | "MASQUE" };
+export type FactureDoc = { numero: string; commandeNumero: string; pdfUrl: string; emiseLe: Date };
+/** Avis + PhotoAvis (0 à 3 photos, composition). */
+export type PhotoAvisDoc = { id: string; url: string };
+export type AvisDoc = Avis & { clientId: string | null; ligneCommandeId: string; statut: "VISIBLE" | "MASQUE"; photos?: PhotoAvisDoc[]; modifieLe?: string };
 export type LitigeDoc = Litige & { clientId: string; montantRembourse?: number; adminId?: string; clotureLe?: string };
 export type VersementDoc = Versement & { fournisseurId: string; sousCommandes: string[] };
 
@@ -131,6 +134,9 @@ function amorcer() {
       base.collection("avis").createIndex({ produitId: 1 }),
       base.collection("litiges").createIndex({ id: 1 }, { unique: true }),
     ]);
+    // mise à niveau : paniers créés avant l'ajout des champs clientId / sessionId du diagramme
+    await base.collection<PanierDoc>("paniers").updateMany({ clientId: { $exists: false }, proprietaire: { $not: /^visiteur:/ } }, [{ $set: { clientId: "$proprietaire", sessionId: null } }]);
+    await base.collection<PanierDoc>("paniers").updateMany({ clientId: { $exists: false } }, [{ $set: { clientId: null, sessionId: { $substrCP: ["$proprietaire", 9, 200] } } }]);
     if (process.env.MONGODB_DEMO === "false") return;
     const meta = base.collection<{ _id: string; le: Date }>("meta");
     if (await meta.findOne({ _id: "demo-module-c" })) return;
@@ -226,7 +232,7 @@ async function insererDemo() {
     base.collection<SousCommandeDoc>("sousCommandes").insertMany([...sousCommandes.values()]),
     base.collection<PanierDoc>("paniers").updateOne(
       { proprietaire: "u-sarra" },
-      { $setOnInsert: { proprietaire: "u-sarra", lignes: PANIER_DEMO, majLe: now } },
+      { $setOnInsert: { proprietaire: "u-sarra", clientId: "u-sarra", sessionId: null, lignes: PANIER_DEMO, majLe: now } },
       { upsert: true },
     ),
     base.collection<CodePromoDoc>("codesPromo").insertMany([

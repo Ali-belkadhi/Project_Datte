@@ -26,10 +26,16 @@ import {
   resolutionLitigeSchema,
   retraitLignePanierSchema,
   sousCommandeSchema,
+  modificationAvisSchema,
+  moderationAvisSchema,
+  suppressionAvisSchema,
+  suppressionCodePromoSchema,
+  versementSchema,
   type CheckoutInput,
 } from "@/lib/validation/commandes";
-import { laisserAvis as _laisserAvis, repondreAvis as _repondreAvis } from "./services/avis";
-import { basculerCodePromo as _basculerCode, creerCodePromo as _creerCode, evaluerCodePromo } from "./services/codes-promo";
+import { laisserAvis as _laisserAvis, modererAvis as _modererAvis, modifierAvis as _modifierAvis, repondreAvis as _repondreAvis, supprimerAvis as _supprimerAvis } from "./services/avis";
+import { basculerCodePromo as _basculerCode, creerCodePromo as _creerCode, evaluerCodePromo, modifierCodePromo as _modifierCode, supprimerCodePromo as _supprimerCode } from "./services/codes-promo";
+import { marquerVersement as _marquerVersement, planifierVersements } from "./services/versements";
 import {
   accepterColis,
   annulerParClient,
@@ -223,4 +229,64 @@ export async function basculerCodePromo(input: unknown) {
     revalidatePath("/admin/codes-promo");
     return d;
   }, "Code promo mis à jour");
+}
+
+export async function modifierCodePromo(input: unknown) {
+  return runAction(codePromoAdminSchema, input, ["ADMIN"], async ({ code, ...d }) => {
+    await _modifierCode(code, { ...d, fournisseurId: d.fournisseurId || null, utilisationsMax: d.utilisationsMax ?? null });
+    revalidatePath("/admin/codes-promo");
+    return { code };
+  }, "Code promo modifié");
+}
+
+export async function supprimerCodePromo(input: unknown) {
+  return runAction(suppressionCodePromoSchema, input, ["ADMIN"], async (d) => {
+    await _supprimerCode(d.code);
+    revalidatePath("/admin/codes-promo");
+    return d;
+  }, "Code promo supprimé");
+}
+
+/* ------------------------------ Avis (CRUD) ----------------------------- */
+
+export async function modifierAvis(input: unknown) {
+  return runAction(modificationAvisSchema, input, ["CLIENT"], async (d) => {
+    const r = await _modifierAvis(d);
+    revalidatePath("/compte/avis");
+    return r;
+  }, "Avis modifié");
+}
+
+export async function supprimerAvis(input: unknown) {
+  return runAction(suppressionAvisSchema, input, ["CLIENT"], async (d) => {
+    const r = await _supprimerAvis(d.avisId);
+    revalidatePath("/compte/avis");
+    return r;
+  }, "Avis supprimé");
+}
+
+export async function modererAvis(input: unknown) {
+  return runAction(moderationAvisSchema, input, ["ADMIN"], async (d) => {
+    const r = await _modererAvis(d.avisId, d.statut);
+    revalidatePath("/admin/avis");
+    return r;
+  }, "Avis mis à jour");
+}
+
+/* ------------------------------- Versements ------------------------------ */
+
+export async function calculerVersements() {
+  return runAction(versementSchema.pick({}), {}, ["ADMIN"], async () => {
+    const r = await planifierVersements();
+    revalidatePath("/admin/versements");
+    return r;
+  }, "Versements calculés");
+}
+
+export async function marquerVersement(input: unknown) {
+  return runAction(versementSchema, input, ["ADMIN"], async (d) => {
+    await _marquerVersement(d.id, d.statut);
+    revalidatePath("/admin/versements");
+    return d;
+  }, "Versement mis à jour");
 }

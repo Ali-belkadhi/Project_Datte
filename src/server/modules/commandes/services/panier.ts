@@ -11,6 +11,9 @@ import { db, type LignePanierDoc } from "../repositories/mongo";
 
 const COOKIE_VISITEUR = "degla-panier";
 
+/** Champs du diagramme : clientId (client connecté) ou sessionId (visiteur). */
+const identite = (p: string) => (p.startsWith("visiteur:") ? { clientId: null, sessionId: p.slice(9) } : { clientId: p, sessionId: null });
+
 /**
  * Propriétaire du panier : l'identifiant du client connecté, sinon un identifiant visiteur (cookie).
  * `creer` : pose le cookie visiteur s'il manque (uniquement dans une Server Action / un Route Handler).
@@ -60,7 +63,7 @@ export async function ajouterLigne(l: LignePanierDoc) {
   const stock = item.produit.typeProduit === "DATTE" ? item.produit.stockGrammes : item.produit.stockUnites;
   if ((nouvelle.quantiteGrammes ?? nouvelle.quantiteUnites ?? 0) > stock) throw new ForbiddenError("Quantité supérieure au stock disponible.");
   const lignes = [...(doc?.lignes ?? []).filter((x) => x.produitId !== l.produitId), nouvelle];
-  await col.updateOne({ proprietaire: p }, { $set: { lignes, majLe: new Date() } }, { upsert: true });
+  await col.updateOne({ proprietaire: p }, { $set: { lignes, majLe: new Date(), ...identite(p) } }, { upsert: true });
   return nouvelle;
 }
 
@@ -71,19 +74,19 @@ export async function modifierLigne(produitId: string, q: { quantiteGrammes?: nu
   const doc = await col.findOne({ proprietaire: p });
   const quantite = q.quantiteGrammes ?? q.quantiteUnites ?? 0;
   const lignes = (doc?.lignes ?? []).flatMap((l) => (l.produitId !== produitId ? [l] : quantite > 0 ? [{ ...l, ...q }] : []));
-  await col.updateOne({ proprietaire: p }, { $set: { lignes, majLe: new Date() } }, { upsert: true });
+  await col.updateOne({ proprietaire: p }, { $set: { lignes, majLe: new Date(), ...identite(p) } }, { upsert: true });
 }
 
 export const retirerLigne = (produitId: string) => modifierLigne(produitId, { quantiteUnites: 0 });
 
 export async function viderPanier() {
   const p = await proprietaire();
-  if (p) await (await db.paniers()).updateOne({ proprietaire: p }, { $set: { lignes: [], majLe: new Date() }, $unset: { codePromo: "" } });
+  if (p) await (await db.paniers()).updateOne({ proprietaire: p }, { $set: { lignes: [], majLe: new Date(), ...identite(p) }, $unset: { codePromo: "" } });
 }
 
 export async function memoriserCodePromo(code: string | null) {
   const p = (await proprietaire(true))!;
-  await (await db.paniers()).updateOne({ proprietaire: p }, code ? { $set: { codePromo: code } } : { $unset: { codePromo: "" } }, { upsert: true });
+  await (await db.paniers()).updateOne({ proprietaire: p }, code ? { $set: { codePromo: code, ...identite(p) } } : { $set: identite(p), $unset: { codePromo: "" } }, { upsert: true });
 }
 
 export async function codePromoMemorise() {
@@ -113,7 +116,7 @@ export async function fusionnerPanierVisiteur(clientId: string) {
           : l,
       );
     }
-    await col.updateOne({ proprietaire: clientId }, { $set: { lignes: [...fusion.values()], majLe: new Date() } }, { upsert: true });
+    await col.updateOne({ proprietaire: clientId }, { $set: { lignes: [...fusion.values()], majLe: new Date(), ...identite(clientId) } }, { upsert: true });
   }
   await col.deleteOne({ proprietaire: `visiteur:${visiteur}` });
   jar.delete(COOKIE_VISITEUR);

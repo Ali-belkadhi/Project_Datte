@@ -57,6 +57,22 @@ export async function creerCodePromo(d: Omit<CodePromoDoc, "utilisations" | "act
   return d.code;
 }
 
+/** Modification d'un code existant (le code lui-même et son compteur d'utilisations ne changent pas). */
+export async function modifierCodePromo(code: string, d: Omit<CodePromoDoc, "code" | "utilisations" | "actif">) {
+  if (d.type === "POURCENTAGE" && (d.valeur < 1 || d.valeur > 90)) throw new ForbiddenError("Le pourcentage doit être compris entre 1 et 90.");
+  const r = await (await db.codesPromo()).updateOne({ code }, { $set: d });
+  if (!r.matchedCount) throw new ForbiddenError("Code introuvable.");
+}
+
+/** Suppression : seulement si le code n'a jamais servi (sinon on le désactive, pour garder l'historique des commandes). */
+export async function supprimerCodePromo(code: string) {
+  const col = await db.codesPromo();
+  const p = await col.findOne({ code });
+  if (!p) throw new ForbiddenError("Code introuvable.");
+  if (p.utilisations > 0) throw new ForbiddenError("Ce code a déjà été utilisé : désactivez-le plutôt que de le supprimer.");
+  await col.deleteOne({ code });
+}
+
 export async function basculerCodePromo(code: string, actif: boolean) {
   const r = await (await db.codesPromo()).updateOne({ code }, { $set: { actif } });
   if (!r.matchedCount) throw new ForbiddenError("Code introuvable.");

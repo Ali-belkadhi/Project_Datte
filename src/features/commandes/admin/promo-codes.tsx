@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatPrix } from "@/lib/format";
 import { useAction } from "@/hooks/use-action";
-import { basculerCodePromo, creerCodePromo } from "@/server/modules/commandes/actions";
+import { basculerCodePromo, creerCodePromo, modifierCodePromo, supprimerCodePromo } from "@/server/modules/commandes/actions";
 
 export type CodePromoVue = {
   code: string;
@@ -37,6 +37,17 @@ export function PromoCodes({ codes }: { codes: CodePromoVue[] }) {
     },
   });
   const basculer = useAction(basculerCodePromo, { onSuccess: () => router.refresh() });
+  const [edition, setEdition] = useState<string | null>(null);
+  const vider = () => {
+    setEdition(null);
+    setF((x) => ({ ...x, code: "", valeur: "10", minimum: "0", max: "", fournisseurId: "" }));
+  };
+  const modifier = useAction(modifierCodePromo, { onSuccess: () => (vider(), router.refresh()) });
+  const supprimer = useAction(supprimerCodePromo, { onSuccess: () => router.refresh() });
+  const editer = (c: CodePromoVue) => {
+    setEdition(c.code);
+    setF({ code: c.code, type: c.type, valeur: String(c.type === "POURCENTAGE" ? c.valeur : c.valeur / 1000), fournisseurId: c.fournisseurId ?? "", minimum: String(c.montantMinimum / 1000), debut: c.debut.slice(0, 10), fin: c.fin.slice(0, 10), max: c.utilisationsMax ? String(c.utilisationsMax) : "" });
+  };
   const maj = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((x) => ({ ...x, [k]: e.target.value }));
 
   return (
@@ -50,7 +61,7 @@ export function PromoCodes({ codes }: { codes: CodePromoVue[] }) {
               <TableHead>Portée</TableHead>
               <TableHead>Validité</TableHead>
               <TableHead>Utilisations</TableHead>
-              <TableHead className="text-end">Actif</TableHead>
+              <TableHead className="text-end">Actions / actif</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -69,7 +80,13 @@ export function PromoCodes({ codes }: { codes: CodePromoVue[] }) {
                   {c.utilisations}
                   {c.utilisationsMax ? ` / ${c.utilisationsMax}` : ""}
                 </TableCell>
-                <TableCell className="text-end">
+                <TableCell className="text-end whitespace-nowrap">
+                  <Button size="icon" variant="ghost" aria-label={`Modifier ${c.code}`} onClick={() => editer(c)}>
+                    <Pencil aria-hidden />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="text-danger" aria-label={`Supprimer ${c.code}`} disabled={supprimer.pending} onClick={() => confirm(`Supprimer le code ${c.code} ?`) && supprimer.run({ code: c.code })}>
+                    <Trash2 aria-hidden />
+                  </Button>
                   <Switch checked={c.actif} disabled={basculer.pending} onCheckedChange={(actif) => basculer.run({ code: c.code, actif })} aria-label={`Activer ${c.code}`} />
                 </TableCell>
               </TableRow>
@@ -88,7 +105,7 @@ export function PromoCodes({ codes }: { codes: CodePromoVue[] }) {
         className="space-y-3 rounded-2xl border bg-card p-4"
         onSubmit={(e) => {
           e.preventDefault();
-          void creer.run({
+          void (edition ? modifier : creer).run({
             code: f.code,
             type: f.type,
             valeur: f.type === "POURCENTAGE" ? Number(f.valeur) : Math.round(Number(f.valeur) * 1000),
@@ -100,10 +117,10 @@ export function PromoCodes({ codes }: { codes: CodePromoVue[] }) {
           });
         }}
       >
-        <h2 className="font-semibold">Nouveau code</h2>
+        <h2 className="font-semibold">{edition ? `Modifier ${edition}` : "Nouveau code"}</h2>
         <div className="space-y-1.5">
           <Label htmlFor="pc-code">Code</Label>
-          <Input id="pc-code" value={f.code} onChange={(e) => setF((x) => ({ ...x, code: e.target.value.toUpperCase() }))} placeholder="RAMADAN26" required className="font-mono uppercase" />
+          <Input id="pc-code" value={f.code} onChange={(e) => setF((x) => ({ ...x, code: e.target.value.toUpperCase() }))} placeholder="RAMADAN26" required disabled={!!edition} className="font-mono uppercase" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -142,9 +159,14 @@ export function PromoCodes({ codes }: { codes: CodePromoVue[] }) {
           <Label htmlFor="pc-four">Réservé à un vendeur (identifiant, facultatif)</Label>
           <Input id="pc-four" value={f.fournisseurId} onChange={maj("fournisseurId")} placeholder="f-ben-amor" />
         </div>
-        <Button type="submit" variant="brand" className="w-full" disabled={creer.pending}>
-          <Plus aria-hidden /> Créer le code
+        <Button type="submit" variant="brand" className="w-full" disabled={creer.pending || modifier.pending}>
+          {edition ? <Pencil aria-hidden /> : <Plus aria-hidden />} {edition ? "Enregistrer les modifications" : "Créer le code"}
         </Button>
+        {edition && (
+          <Button type="button" variant="outline" className="w-full" onClick={vider}>
+            Annuler la modification
+          </Button>
+        )}
       </form>
     </div>
   );

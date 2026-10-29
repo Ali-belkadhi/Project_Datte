@@ -12,7 +12,7 @@ export async function creerFacture(commandeNumero: string) {
   const existante = await col.findOne({ commandeNumero });
   if (existante) return existante;
   const numero = `FAC-${new Date().getFullYear()}-${String(await prochainNumero("facture", 0)).padStart(6, "0")}`;
-  const doc = { numero, commandeNumero, emiseLe: new Date() };
+  const doc = { numero, commandeNumero, pdfUrl: `/api/factures/${commandeNumero}`, emiseLe: new Date() };
   await col.updateOne({ commandeNumero }, { $setOnInsert: doc }, { upsert: true });
   return (await col.findOne({ commandeNumero }))!;
 }

@@ -37,7 +37,7 @@ export async function mesAvisRecus() {
 }
 
 /** Avis sur une ligne d'un colis LIVRÉ du client connecté, un seul par achat. */
-export async function laisserAvis(d: { ligneCommandeId: string; note: number; commentaire: string }) {
+export async function laisserAvis(d: { ligneCommandeId: string; note: number; commentaire: string; photos?: string[] }) {
   const u = await getUtilisateurCourant();
   const s = await (await db.sousCommandes()).findOne({ clientId: u.id, "lignes.id": d.ligneCommandeId });
   if (!s) throw new NotFoundError("achat introuvable");
@@ -59,9 +59,55 @@ export async function laisserAvis(d: { ligneCommandeId: string; note: number; co
     clientId: u.id,
     ligneCommandeId: d.ligneCommandeId,
     statut: "VISIBLE",
+    photos: (d.photos ?? []).slice(0, 3).map((url, i) => ({ id: `${id}-photo-${i + 1}`, url })),
   });
   await majNoteProduit(ligne.produitId);
   return { id };
+}
+
+/* ------------------------- CRUD client : ses avis ------------------------- */
+
+export async function mesAvis() {
+  const u = await getUtilisateurCourant();
+  return (await db.avis()).find({ clientId: u.id }, { projection: { _id: 0 } }).sort({ creeLe: -1 }).toArray();
+}
+
+async function avisDuClient(avisId: string) {
+  const u = await getUtilisateurCourant();
+  const a = await (await db.avis()).findOne({ id: avisId });
+  if (!a) throw new NotFoundError(`avis ${avisId}`);
+  if (a.clientId !== u.id) throw new ForbiddenError("Vous ne pouvez modifier que vos propres avis.");
+  return a;
+}
+
+/** Le client modifie la note ou le commentaire de son avis (la réponse du vendeur est conservée). */
+export async function modifierAvis(d: { avisId: string; note: number; commentaire: string }) {
+  const a = await avisDuClient(d.avisId);
+  await (await db.avis()).updateOne({ id: a.id }, { $set: { note: d.note, commentaire: d.commentaire, modifieLe: new Date().toISOString() } });
+  await majNoteProduit(a.produitId);
+  return { id: a.id };
+}
+
+/** Le client supprime son avis (il pourra en redonner un sur le même achat). */
+export async function supprimerAvis(avisId: string) {
+  const a = await avisDuClient(avisId);
+  await (await db.avis()).deleteOne({ id: a.id });
+  await majNoteProduit(a.produitId);
+  return { id: a.id };
+}
+
+/* --------------------------- Modération (admin) --------------------------- */
+
+export async function tousLesAvis(statut?: "VISIBLE" | "MASQUE") {
+  return (await db.avis()).find(statut ? { statut } : {}, { projection: { _id: 0 } }).sort({ creeLe: -1 }).limit(200).toArray();
+}
+
+/** Avis.masquer() : un avis masqué n'apparaît plus sur la fiche produit ni dans la note moyenne. */
+export async function modererAvis(avisId: string, statut: "VISIBLE" | "MASQUE") {
+  const r = await (await db.avis()).findOneAndUpdate({ id: avisId }, { $set: { statut } });
+  if (!r) throw new NotFoundError(`avis ${avisId}`);
+  await majNoteProduit(r.produitId);
+  return { id: avisId, statut };
 }
 
 /** Réponse publique du vendeur, une seule fois, uniquement sur ses propres avis. */
