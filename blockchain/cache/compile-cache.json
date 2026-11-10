@@ -1,0 +1,16 @@
+{
+  "C:\\Users\\Mega-Pc\\Desktop\\projet_Next\\Project_Datte-template\\blockchain\\contracts\\DateTraceability.sol": {
+    "jobHash": "solc-0_8_24-88856e87b7873cb060425936cbf7ef5446112c63",
+    "isolated": false,
+    "compilerType": "solc",
+    "artifactPaths": [
+      "C:\\Users\\Mega-Pc\\Desktop\\projet_Next\\Project_Datte-template\\blockchain\\artifacts\\contracts\\DateTraceability.sol\\DateTraceability.json"
+    ],
+    "buildInfoPath": "C:\\Users\\Mega-Pc\\Desktop\\projet_Next\\Project_Datte-template\\blockchain\\artifacts\\build-info\\solc-0_8_24-88856e87b7873cb060425936cbf7ef5446112c63.json",
+    "buildInfoOutputPath": "C:\\Users\\Mega-Pc\\Desktop\\projet_Next\\Project_Datte-template\\blockchain\\artifacts\\build-info\\solc-0_8_24-88856e87b7873cb060425936cbf7ef5446112c63.output.json",
+    "typeFilePath": "C:\\Users\\Mega-Pc\\Desktop\\projet_Next\\Project_Datte-template\\blockchain\\artifacts\\contracts\\DateTraceability.sol\\artifacts.d.ts",
+    "wasm": false,
+    "artifactsDirectory": "C:\\Users\\Mega-Pc\\Desktop\\projet_Next\\Project_Datte-template\\blockchain\\artifacts",
+    "emitsTypeDeclarations": true
+  }
+}

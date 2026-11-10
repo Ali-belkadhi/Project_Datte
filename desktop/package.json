@@ -1,0 +1,9 @@
+{
+  "name": "degla-desktop",
+  "productName": "DEGLA",
+  "version": "0.1.0",
+  "description": "DEGLA pour Windows — catalogue local et visualisation 3D hors ligne",
+  "author": "Équipe DEGLA",
+  "private": true,
+  "main": "main.cjs"
+}
