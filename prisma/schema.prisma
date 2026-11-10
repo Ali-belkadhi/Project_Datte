@@ -1,0 +1,974 @@
+// DEGLA — schéma Prisma (annexe A du cahier des charges)
+// 38 modèles + énumérations. ÉCRIT MAIS JAMAIS MIGRÉ dans le template.
+// Conventions : id cuid, creeLe / modifieLe partout, montants en millimes (Int), poids en grammes (Int).
+// L'URL de la base est lue dans prisma.config.ts (Prisma 7).
+// Voir prisma/README.md pour brancher PostgreSQL.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =====================================================================
+// ÉNUMÉRATIONS
+// =====================================================================
+
+enum Role {
+  CLIENT
+  FOURNISSEUR
+  ADMIN
+}
+
+enum Langue {
+  FR
+  AR
+  EN
+}
+
+enum StatutCompte {
+  ACTIF
+  SUSPENDU
+  SUPPRIME
+}
+
+enum TypeFournisseur {
+  PRODUCTEUR
+  COOPERATIVE
+  REVENDEUR
+  TRANSFORMATEUR
+}
+
+enum StatutVerification {
+  EN_ATTENTE
+  VERIFIE
+  REFUSE
+  SUSPENDU
+}
+
+enum TypeDocument {
+  CIN
+  RNE
+  PATENTE
+  ATTESTATION_BIO
+  AUTRE
+}
+
+enum NiveauAdmin {
+  SUPER_ADMIN
+  MODERATEUR
+}
+
+enum Gouvernorat {
+  TUNIS
+  ARIANA
+  BEN_AROUS
+  MANOUBA
+  NABEUL
+  ZAGHOUAN
+  BIZERTE
+  BEJA
+  JENDOUBA
+  KEF
+  SILIANA
+  SOUSSE
+  MONASTIR
+  MAHDIA
+  SFAX
+  KAIROUAN
+  KASSERINE
+  SIDI_BOUZID
+  GABES
+  MEDENINE
+  TATAOUINE
+  GAFSA
+  TOZEUR
+  KEBILI
+}
+
+enum TypeProduit {
+  DATTE
+  DERIVE
+}
+
+enum StatutProduit {
+  BROUILLON
+  PUBLIE
+  MASQUE
+  RUPTURE
+  ARCHIVE
+}
+
+enum CategorieQualite {
+  EXTRA
+  CAT_I
+  CAT_II
+}
+
+enum Presentation {
+  BRANCHEE
+  VRAC
+  CONDITIONNEE
+  DENOYAUTEE
+}
+
+enum Maturite {
+  BSER
+  RTOB
+  TAMR
+}
+
+enum TypeDerive {
+  JUS
+  CONFITURE
+  PATE
+  ROB
+  MIEL
+  CAFE_NOYAUX
+  AUTRE
+}
+
+enum UniteContenance {
+  ML
+  G
+}
+
+enum ModeGeneration3D {
+  IMAGE
+  MULTI_IMAGE
+}
+
+enum Statut3D {
+  EN_ATTENTE
+  EN_COURS
+  PRET
+  PUBLIE
+  REJETE
+  ECHEC
+}
+
+enum StatutCommande {
+  EN_ATTENTE_PAIEMENT
+  PAYEE
+  PARTIELLEMENT_LIVREE
+  LIVREE
+  ANNULEE
+}
+
+enum StatutSousCommande {
+  EN_ATTENTE
+  ACCEPTEE
+  EN_PREPARATION
+  EXPEDIEE
+  LIVREE
+  REFUSEE
+  ANNULEE
+  REMBOURSEE
+}
+
+enum MethodePaiement {
+  A_LA_LIVRAISON
+  KONNECT
+  FLOUCI
+  CARTE
+}
+
+enum StatutPaiement {
+  EN_ATTENTE
+  REUSSI
+  ECHOUE
+  REMBOURSE
+}
+
+enum TypeRemise {
+  POURCENTAGE
+  MONTANT_FIXE
+}
+
+enum StatutModeration {
+  VISIBLE
+  MASQUE
+}
+
+enum TypeNotification {
+  COMMANDE_STATUT
+  NOUVELLE_COMMANDE
+  MODELE_3D_PRET
+  MODELE_3D_ECHEC
+  NOUVEAU_MESSAGE
+  STOCK_BAS
+  NOUVEL_AVIS
+  FOURNISSEUR_VALIDE
+  LITIGE
+  CREDITS_3D_BAS
+  ACHAT_CREDITS_CONFIRME
+}
+
+enum CibleSignalement {
+  PRODUIT
+  AVIS
+  FOURNISSEUR
+  MESSAGE
+}
+
+enum StatutTraitement {
+  OUVERT
+  TRAITE
+  REJETE
+}
+
+enum MotifLitige {
+  NON_RECU
+  ABIME
+  NON_CONFORME
+  AUTRE
+}
+
+enum StatutLitige {
+  OUVERT
+  EN_EXAMEN
+  RESOLU_CLIENT
+  RESOLU_FOURNISSEUR
+  CLOS
+}
+
+enum StatutVersement {
+  PLANIFIE
+  EFFECTUE
+  ECHOUE
+}
+
+enum TypeMouvementCredit {
+  ACHAT
+  RESERVATION
+  CONSOMMATION
+  RESTITUTION
+  BONUS
+  AJUSTEMENT_ADMIN
+}
+
+// =====================================================================
+// COMPTES — module A
+// =====================================================================
+
+model Utilisateur {
+  id                String       @id @default(cuid())
+  email             String       @unique
+  motDePasseHash    String?
+  nom               String
+  prenom            String
+  telephone         String?
+  avatarUrl         String?
+  role              Role         @default(CLIENT)
+  langue            Langue       @default(FR)
+  emailVerifie      Boolean      @default(false)
+  telephoneVerifie  Boolean      @default(false)
+  statut            StatutCompte @default(ACTIF)
+  derniereConnexion DateTime?
+  creeLe            DateTime     @default(now())
+  modifieLe         DateTime     @updatedAt
+
+  client          Client?
+  fournisseur     Fournisseur?
+  administrateur  Administrateur?
+  notifications   Notification[]
+  abonnementsPush AbonnementPush[]
+  messages        Message[]
+  signalements    Signalement[]    @relation("SignalementAuteur")
+  journal         JournalAudit[]
+}
+
+model Client {
+  id                 String   @id @default(cuid())
+  utilisateurId      String   @unique
+  adresseParDefautId String?  @unique
+  creeLe             DateTime @default(now())
+  modifieLe          DateTime @updatedAt
+
+  utilisateur      Utilisateur    @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  adresseParDefaut Adresse?       @relation("AdresseParDefaut", fields: [adresseParDefautId], references: [id], onDelete: SetNull)
+  adresses         Adresse[]      @relation("AdressesClient")
+  panier           Panier?
+  commandes        Commande[]
+  avis             Avis[]
+  favoris          Favori[]
+  conversations    Conversation[]
+  litiges          Litige[]
+}
+
+model Adresse {
+  id          String      @id @default(cuid())
+  clientId    String
+  libelle     String
+  ligne1      String
+  ligne2      String?
+  ville       String
+  gouvernorat Gouvernorat
+  codePostal  String
+  telephone   String
+  latitude    Float?
+  longitude   Float?
+  creeLe      DateTime    @default(now())
+  modifieLe   DateTime    @updatedAt
+
+  client          Client  @relation("AdressesClient", fields: [clientId], references: [id], onDelete: Cascade)
+  clientParDefaut Client? @relation("AdresseParDefaut")
+
+  @@index([clientId])
+}
+
+model Fournisseur {
+  id                  String             @id @default(cuid())
+  utilisateurId       String             @unique
+  nomBoutique         String
+  slug                String             @unique
+  type                TypeFournisseur
+  description         String?
+  logoUrl             String?
+  banniereUrl         String?
+  region              Gouvernorat
+  adresseExploitation String
+  matriculeFiscal     String?
+  numeroRNE           String?
+  rib                 String
+  statutVerification  StatutVerification @default(EN_ATTENTE)
+  motifRefus          String?
+  verifieLe           DateTime?
+  noteMoyenne         Float              @default(0)
+  nombreVentes        Int                @default(0)
+  tauxCommission      Float?
+  soldeCredits3D      Int                @default(0)
+  creeLe              DateTime           @default(now())
+  modifieLe           DateTime           @updatedAt
+
+  utilisateur       Utilisateur           @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  documents         DocumentFournisseur[]
+  produits          Produit[]
+  sousCommandes     SousCommande[]
+  versements        Versement[]
+  codesPromo        CodePromo[]
+  conversations     Conversation[]
+  favoris           Favori[]
+  achatsCredits     AchatCredits3D[]
+  mouvementsCredits MouvementCredit3D[]
+
+  @@index([statutVerification])
+  @@index([region])
+}
+
+model DocumentFournisseur {
+  id            String       @id @default(cuid())
+  fournisseurId String
+  type          TypeDocument
+  fichierUrl    String
+  valide        Boolean?
+  creeLe        DateTime     @default(now())
+  modifieLe     DateTime     @updatedAt
+
+  fournisseur Fournisseur @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+
+  @@index([fournisseurId])
+}
+
+model Administrateur {
+  id            String      @id @default(cuid())
+  utilisateurId String      @unique
+  niveau        NiveauAdmin @default(MODERATEUR)
+  creeLe        DateTime    @default(now())
+  modifieLe     DateTime    @updatedAt
+
+  utilisateur         Utilisateur   @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  signalementsTraites Signalement[] @relation("SignalementTraitePar")
+  litiges             Litige[]
+}
+
+// =====================================================================
+// CATALOGUE — module B
+// =====================================================================
+
+model Variete {
+  id               String   @id @default(cuid())
+  nom              String
+  nomArabe         String?
+  slug             String   @unique
+  description      String
+  origine          String
+  couleur          String?
+  texture          String?
+  saveur           String?
+  moisDebutRecolte Int
+  moisFinRecolte   Int
+  imageUrl         String?
+  active           Boolean  @default(true)
+  creeLe           DateTime @default(now())
+  modifieLe        DateTime @updatedAt
+
+  produitsDatte  ProduitDatte[]
+  produitsDerive ProduitDerive[]
+}
+
+model CategorieDerive {
+  id        String     @id @default(cuid())
+  nom       String
+  slug      String     @unique
+  type      TypeDerive
+  icone     String?
+  active    Boolean    @default(true)
+  creeLe    DateTime   @default(now())
+  modifieLe DateTime   @updatedAt
+
+  produits ProduitDerive[]
+}
+
+/// Classe abstraite : le discriminant `typeProduit` indique la table 1-1 (ProduitDatte | ProduitDerive).
+model Produit {
+  id            String        @id @default(cuid())
+  fournisseurId String
+  typeProduit   TypeProduit
+  nom           String
+  slug          String        @unique
+  description   String
+  statut        StatutProduit @default(BROUILLON)
+  regionOrigine Gouvernorat
+  bio           Boolean       @default(false)
+  noteMoyenne   Float         @default(0)
+  nombreAvis    Int           @default(0)
+  nombreVentes  Int           @default(0)
+  creeLe        DateTime      @default(now())
+  modifieLe     DateTime      @updatedAt
+
+  fournisseur    Fournisseur     @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+  datte          ProduitDatte?
+  derive         ProduitDerive?
+  photos         PhotoProduit[]
+  modeles3D      Modele3D[]
+  avis           Avis[]
+  favoris        Favori[]
+  lignesPanier   LignePanier[]
+  lignesCommande LigneCommande[]
+  conversations  Conversation[]
+
+  @@index([fournisseurId])
+  @@index([typeProduit, statut])
+}
+
+model ProduitDatte {
+  produitId        String           @id
+  varieteId        String
+  categorieQualite CategorieQualite
+  presentation     Presentation
+  maturite         Maturite
+  anneeRecolte     Int
+  prixParKg        Int
+  stockGrammes     Int
+  poidsMinGrammes  Int              @default(500)
+  pasGrammes       Int              @default(500)
+  creeLe           DateTime         @default(now())
+  modifieLe        DateTime         @updatedAt
+
+  produit      Produit       @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  variete      Variete       @relation(fields: [varieteId], references: [id])
+  optionsPoids OptionPoids[]
+
+  @@index([varieteId])
+}
+
+model ProduitDerive {
+  produitId       String          @id
+  categorieId     String
+  varieteId       String?
+  contenance      Int
+  uniteContenance UniteContenance
+  prixUnitaire    Int
+  stockUnites     Int
+  ingredients     String
+  dateLimite      DateTime?
+  creeLe          DateTime        @default(now())
+  modifieLe       DateTime        @updatedAt
+
+  produit   Produit         @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  categorie CategorieDerive @relation(fields: [categorieId], references: [id])
+  variete   Variete?        @relation(fields: [varieteId], references: [id])
+
+  @@index([categorieId])
+}
+
+model OptionPoids {
+  id             String   @id @default(cuid())
+  produitDatteId String
+  poidsGrammes   Int
+  libelle        String
+  creeLe         DateTime @default(now())
+  modifieLe      DateTime @updatedAt
+
+  produitDatte ProduitDatte @relation(fields: [produitDatteId], references: [produitId], onDelete: Cascade)
+
+  @@unique([produitDatteId, poidsGrammes])
+}
+
+model PhotoProduit {
+  id         String   @id @default(cuid())
+  produitId  String
+  url        String
+  ordre      Int
+  principale Boolean  @default(false)
+  largeur    Int
+  hauteur    Int
+  texteAlt   String
+  creeLe     DateTime @default(now())
+  modifieLe  DateTime @updatedAt
+
+  produit Produit @relation(fields: [produitId], references: [id], onDelete: Cascade)
+
+  @@index([produitId, ordre])
+}
+
+model Modele3D {
+  id               String           @id @default(cuid())
+  produitId        String
+  meshyTaskId      String?          @unique
+  mode             ModeGeneration3D
+  photosSourceIds  String[]
+  statut           Statut3D         @default(EN_ATTENTE)
+  progression      Int              @default(0)
+  glbUrl           String?
+  usdzUrl          String?
+  miniatureUrl     String?
+  polycount        Int?
+  creditsConsommes Int              @default(0)
+  messageErreur    String?
+  termineLe        DateTime?
+  creeLe           DateTime         @default(now())
+  modifieLe        DateTime         @updatedAt
+
+  produit    Produit             @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  mouvements MouvementCredit3D[]
+
+  @@index([produitId])
+  @@index([statut])
+}
+
+// =====================================================================
+// FACTURATION 3D — module B
+// =====================================================================
+
+model PackCredits3D {
+  id            String   @id @default(cuid())
+  nom           String
+  nombreCredits Int
+  prix          Int
+  actif         Boolean  @default(true)
+  ordre         Int      @default(0)
+  creeLe        DateTime @default(now())
+  modifieLe     DateTime @updatedAt
+
+  achats AchatCredits3D[]
+}
+
+model AchatCredits3D {
+  id               String          @id @default(cuid())
+  fournisseurId    String
+  packId           String
+  nombreCredits    Int
+  montant          Int
+  methode          MethodePaiement
+  statut           StatutPaiement  @default(EN_ATTENTE)
+  referenceExterne String?         @unique
+  factureUrl       String?
+  payeLe           DateTime?
+  creeLe           DateTime        @default(now())
+  modifieLe        DateTime        @updatedAt
+
+  fournisseur Fournisseur        @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+  pack        PackCredits3D      @relation(fields: [packId], references: [id])
+  mouvement   MouvementCredit3D?
+
+  @@index([fournisseurId])
+}
+
+model MouvementCredit3D {
+  id            String              @id @default(cuid())
+  fournisseurId String
+  type          TypeMouvementCredit
+  quantite      Int
+  soldeApres    Int
+  achatId       String?             @unique
+  modele3DId    String?
+  motif         String?
+  creeLe        DateTime            @default(now())
+  modifieLe     DateTime            @updatedAt
+
+  fournisseur Fournisseur     @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+  achat       AchatCredits3D? @relation(fields: [achatId], references: [id])
+  modele3D    Modele3D?       @relation(fields: [modele3DId], references: [id])
+
+  @@index([fournisseurId, creeLe])
+}
+
+// =====================================================================
+// PANIER & COMMANDES — module C
+// =====================================================================
+
+model Panier {
+  id        String   @id @default(cuid())
+  clientId  String?  @unique
+  sessionId String?  @unique
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  client Client?       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  lignes LignePanier[]
+}
+
+model LignePanier {
+  id              String   @id @default(cuid())
+  panierId        String
+  produitId       String
+  quantiteGrammes Int?
+  quantiteUnites  Int?
+  creeLe          DateTime @default(now())
+  modifieLe       DateTime @updatedAt
+
+  panier  Panier  @relation(fields: [panierId], references: [id], onDelete: Cascade)
+  produit Produit @relation(fields: [produitId], references: [id], onDelete: Cascade)
+
+  @@unique([panierId, produitId])
+}
+
+model Commande {
+  id               String         @id @default(cuid())
+  numero           String         @unique
+  clientId         String
+  adresseLivraison Json
+  sousTotal        Int
+  fraisLivraison   Int
+  remise           Int            @default(0)
+  total            Int
+  codePromoId      String?
+  statut           StatutCommande @default(EN_ATTENTE_PAIEMENT)
+  creeLe           DateTime       @default(now())
+  modifieLe        DateTime       @updatedAt
+
+  client        Client         @relation(fields: [clientId], references: [id])
+  codePromo     CodePromo?     @relation(fields: [codePromoId], references: [id])
+  sousCommandes SousCommande[]
+  paiements     Paiement[]
+  facture       Facture?
+
+  @@index([clientId, creeLe])
+}
+
+model SousCommande {
+  id             String             @id @default(cuid())
+  commandeId     String
+  fournisseurId  String
+  numero         String             @unique
+  sousTotal      Int
+  fraisLivraison Int
+  commission     Int
+  statut         StatutSousCommande @default(EN_ATTENTE)
+  transporteur   String?
+  numeroSuivi    String?
+  motifRefus     String?
+  expedieeLe     DateTime?
+  livreeLe       DateTime?
+  creeLe         DateTime           @default(now())
+  modifieLe      DateTime           @updatedAt
+
+  commande      Commande           @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  fournisseur   Fournisseur        @relation(fields: [fournisseurId], references: [id])
+  lignes        LigneCommande[]
+  historique    HistoriqueStatut[]
+  litiges       Litige[]
+  conversations Conversation[]
+
+  @@index([fournisseurId, statut])
+}
+
+model LigneCommande {
+  id              String      @id @default(cuid())
+  sousCommandeId  String
+  produitId       String
+  nomProduit      String
+  nomVariete      String?
+  typeProduit     TypeProduit
+  quantiteGrammes Int?
+  quantiteUnites  Int?
+  prixUnitaire    Int
+  total           Int
+  creeLe          DateTime    @default(now())
+  modifieLe       DateTime    @updatedAt
+
+  sousCommande SousCommande @relation(fields: [sousCommandeId], references: [id], onDelete: Cascade)
+  produit      Produit      @relation(fields: [produitId], references: [id])
+  avis         Avis?
+}
+
+model HistoriqueStatut {
+  id             String              @id @default(cuid())
+  sousCommandeId String
+  ancienStatut   StatutSousCommande?
+  nouveauStatut  StatutSousCommande
+  auteurId       String?
+  commentaire    String?
+  creeLe         DateTime            @default(now())
+  modifieLe      DateTime            @updatedAt
+
+  sousCommande SousCommande @relation(fields: [sousCommandeId], references: [id], onDelete: Cascade)
+
+  @@index([sousCommandeId])
+}
+
+model Paiement {
+  id               String          @id @default(cuid())
+  commandeId       String
+  methode          MethodePaiement
+  statut           StatutPaiement  @default(EN_ATTENTE)
+  montant          Int
+  referenceExterne String?         @unique
+  reponseBrute     Json?
+  payeLe           DateTime?
+  creeLe           DateTime        @default(now())
+  modifieLe        DateTime        @updatedAt
+
+  commande Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+
+  @@index([commandeId])
+}
+
+model Facture {
+  id         String   @id @default(cuid())
+  commandeId String   @unique
+  numero     String   @unique
+  pdfUrl     String
+  emiseLe    DateTime @default(now())
+  creeLe     DateTime @default(now())
+  modifieLe  DateTime @updatedAt
+
+  commande Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+}
+
+model CodePromo {
+  id              String     @id @default(cuid())
+  code            String     @unique
+  type            TypeRemise
+  valeur          Int
+  fournisseurId   String?
+  montantMinimum  Int        @default(0)
+  debut           DateTime
+  fin             DateTime
+  utilisationsMax Int?
+  utilisations    Int        @default(0)
+  actif           Boolean    @default(true)
+  creeLe          DateTime   @default(now())
+  modifieLe       DateTime   @updatedAt
+
+  fournisseur Fournisseur? @relation(fields: [fournisseurId], references: [id])
+  commandes   Commande[]
+}
+
+// =====================================================================
+// INTERACTIONS
+// =====================================================================
+
+model Avis {
+  id                 String           @id @default(cuid())
+  produitId          String
+  clientId           String
+  ligneCommandeId    String           @unique
+  note               Int
+  commentaire        String?
+  reponseFournisseur String?
+  reponduLe          DateTime?
+  statut             StatutModeration @default(VISIBLE)
+  creeLe             DateTime         @default(now())
+  modifieLe          DateTime         @updatedAt
+
+  produit       Produit       @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  client        Client        @relation(fields: [clientId], references: [id])
+  ligneCommande LigneCommande @relation(fields: [ligneCommandeId], references: [id])
+  photos        PhotoAvis[]
+
+  @@index([produitId, statut])
+}
+
+model PhotoAvis {
+  id        String   @id @default(cuid())
+  avisId    String
+  url       String
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  avis Avis @relation(fields: [avisId], references: [id], onDelete: Cascade)
+}
+
+model Favori {
+  id            String   @id @default(cuid())
+  clientId      String
+  produitId     String?
+  fournisseurId String?
+  creeLe        DateTime @default(now())
+  modifieLe     DateTime @updatedAt
+
+  client      Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  produit     Produit?     @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  fournisseur Fournisseur? @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, produitId])
+  @@unique([clientId, fournisseurId])
+}
+
+model Conversation {
+  id               String   @id @default(cuid())
+  clientId         String
+  fournisseurId    String
+  produitId        String?
+  sousCommandeId   String?
+  dernierMessageLe DateTime @default(now())
+  creeLe           DateTime @default(now())
+  modifieLe        DateTime @updatedAt
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  fournisseur  Fournisseur   @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+  produit      Produit?      @relation(fields: [produitId], references: [id], onDelete: SetNull)
+  sousCommande SousCommande? @relation(fields: [sousCommandeId], references: [id], onDelete: SetNull)
+  messages     Message[]
+
+  @@index([clientId, dernierMessageLe])
+  @@index([fournisseurId, dernierMessageLe])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  expediteurId   String
+  contenu        String
+  lu             Boolean  @default(false)
+  creeLe         DateTime @default(now())
+  modifieLe      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  expediteur   Utilisateur  @relation(fields: [expediteurId], references: [id])
+
+  @@index([conversationId, creeLe])
+}
+
+model Notification {
+  id            String           @id @default(cuid())
+  utilisateurId String
+  type          TypeNotification
+  titre         String
+  contenu       String
+  lien          String?
+  lue           Boolean          @default(false)
+  creeLe        DateTime         @default(now())
+  modifieLe     DateTime         @updatedAt
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@index([utilisateurId, lue])
+}
+
+model AbonnementPush {
+  id            String   @id @default(cuid())
+  utilisateurId String
+  endpoint      String   @unique
+  p256dh        String
+  auth          String
+  creeLe        DateTime @default(now())
+  modifieLe     DateTime @updatedAt
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+}
+
+// =====================================================================
+// ADMINISTRATION
+// =====================================================================
+
+model Signalement {
+  id          String           @id @default(cuid())
+  auteurId    String
+  cibleType   CibleSignalement
+  cibleId     String
+  motif       String
+  statut      StatutTraitement @default(OUVERT)
+  traiteParId String?
+  creeLe      DateTime         @default(now())
+  modifieLe   DateTime         @updatedAt
+
+  auteur    Utilisateur     @relation("SignalementAuteur", fields: [auteurId], references: [id])
+  traitePar Administrateur? @relation("SignalementTraitePar", fields: [traiteParId], references: [id])
+
+  @@index([statut])
+}
+
+model Litige {
+  id               String       @id @default(cuid())
+  sousCommandeId   String
+  clientId         String
+  motif            MotifLitige
+  description      String
+  statut           StatutLitige @default(OUVERT)
+  montantRembourse Int?
+  adminId          String?
+  clotureLe        DateTime?
+  creeLe           DateTime     @default(now())
+  modifieLe        DateTime     @updatedAt
+
+  sousCommande SousCommande    @relation(fields: [sousCommandeId], references: [id])
+  client       Client          @relation(fields: [clientId], references: [id])
+  admin        Administrateur? @relation(fields: [adminId], references: [id])
+
+  @@index([statut])
+}
+
+model Versement {
+  id            String          @id @default(cuid())
+  fournisseurId String
+  periodeDebut  DateTime
+  periodeFin    DateTime
+  montantBrut   Int
+  commission    Int
+  montantNet    Int
+  statut        StatutVersement @default(PLANIFIE)
+  reference     String?         @unique
+  creeLe        DateTime        @default(now())
+  modifieLe     DateTime        @updatedAt
+
+  fournisseur Fournisseur @relation(fields: [fournisseurId], references: [id])
+
+  @@index([fournisseurId, periodeDebut])
+}
+
+model ParametresPlateforme {
+  id                        String   @id @default(cuid())
+  tauxCommission            Float    @default(8)
+  fraisLivraisonDefaut      Int      @default(7000)
+  livraisonGratuiteDes      Int?
+  creditsOffertsInscription Int      @default(3)
+  coutCreditsImage          Int      @default(1)
+  coutCreditsMultiImage     Int      @default(2)
+  seuilCreditsBas           Int      @default(3)
+  delaiMax3DMinutes         Int      @default(30)
+  creeLe                    DateTime @default(now())
+  modifieLe                 DateTime @updatedAt
+}
+
+model JournalAudit {
+  id            String   @id @default(cuid())
+  utilisateurId String?
+  action        String
+  entite        String
+  entiteId      String
+  details       Json?
+  ip            String?
+  creeLe        DateTime @default(now())
+  modifieLe     DateTime @updatedAt
+
+  utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id], onDelete: SetNull)
+
+  @@index([entite, entiteId])
+}
