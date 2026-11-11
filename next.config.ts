@@ -30,14 +30,7 @@ const nextConfig: NextConfig = {
       }
     : {}),
   experimental: process.env.NEXT_BUILD_CPUS ? { cpus: Number(process.env.NEXT_BUILD_CPUS), workerThreads: false } : undefined,
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
-  },
+  // Tailwind CSS : compilé par PostCSS (postcss.config.mjs), en développement comme en production.
 };
 
 export default nextConfig;
