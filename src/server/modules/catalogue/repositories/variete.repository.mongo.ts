@@ -22,28 +22,44 @@ function toVariete(doc: IVarieteDocument): Variete {
   };
 }
 
-async function assurerInitialisation() {
-  await connectMongo();
-  const count = await VarieteModel.countDocuments();
-  if (count === 0) {
+let initialisation: Promise<void> | null = null;
+
+/**
+ * Référentiel des variétés créé au premier accès. Idempotent (upsert par slug) et partagé
+ * entre requêtes simultanées : deux pages chargées en même temps sur une base vide ne créent pas de doublon.
+ */
+function assurerInitialisation() {
+  initialisation ??= (async () => {
+    await connectMongo();
+    if ((await VarieteModel.countDocuments()) > 0) return;
     for (const v of VARIETES) {
-      await VarieteModel.create({
-        slug: v.slug,
-        nom: v.nom,
-        nomArabe: v.nomArabe,
-        origine: v.origine,
-        couleur: v.couleur,
-        texture: v.texture,
-        saveur: v.saveur,
-        saison: v.saison,
-        calibre: v.calibre,
-        resume: v.resume,
-        description: v.description,
-        usages: v.usages,
-        active: true,
-      });
+      await VarieteModel.updateOne(
+        { slug: v.slug },
+        {
+          $setOnInsert: {
+            slug: v.slug,
+            nom: v.nom,
+            nomArabe: v.nomArabe,
+            origine: v.origine,
+            couleur: v.couleur,
+            texture: v.texture,
+            saveur: v.saveur,
+            saison: v.saison,
+            calibre: v.calibre,
+            resume: v.resume,
+            description: v.description,
+            usages: v.usages,
+            active: true,
+          },
+        },
+        { upsert: true },
+      );
     }
-  }
+  })().catch((e) => {
+    initialisation = null;
+    throw e;
+  });
+  return initialisation;
 }
 
 export const varieteRepositoryMongo: VarieteRepository = {

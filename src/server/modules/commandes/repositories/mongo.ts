@@ -81,8 +81,6 @@ export type PhotoAvisDoc = { id: string; url: string };
 export type AvisDoc = Avis & { clientId: string | null; ligneCommandeId: string; statut: "VISIBLE" | "MASQUE"; photos?: PhotoAvisDoc[]; modifieLe?: string };
 export type LitigeDoc = Litige & { clientId: string; montantRembourse?: number; adminId?: string; clotureLe?: string };
 export type VersementDoc = Versement & { fournisseurId: string; sousCommandes: string[] };
-/** JournalAudit (classe du module A) : ici, l'usage de l'IA-C (tokens, durée, outils). */
-export type JournalAuditDoc = { utilisateurId: string | null; action: string; entite: string; entiteId: string; details?: Record<string, unknown>; ip?: string; creeLe: Date };
 
 /* ------------------------------ Collections ------------------------------ */
 
@@ -102,7 +100,6 @@ export const db = {
   avis: () => col<AvisDoc>("avis"),
   litiges: () => col<LitigeDoc>("litiges"),
   versements: () => col<VersementDoc>("versements"),
-  journalAudit: () => col<JournalAuditDoc>("journalAudit"),
 };
 
 export const SANS_ID = { projection: { _id: 0 } } as const;
@@ -118,10 +115,16 @@ export async function prochainNumero(nom: string, depart: number) {
 
 let amorcage: Promise<void> | null = null;
 
-/** Index + données de démonstration, une seule fois par base (désactivable : MONGODB_DEMO=false). */
+/**
+ * Index + données de départ, une seule fois par base :
+ *  - codes promo de lancement (toujours) ;
+ *  - commandes, avis, litiges et versements de démonstration (MONGODB_DEMO=true uniquement :
+ *    dans l'application intégrée, les clients et produits sont réels).
+ */
 function amorcer() {
   amorcage ??= (async () => {
     const base = await getDb();
+    await migrerAvisAnciens();
     await Promise.all([
       base.collection("commandes").createIndex({ numero: 1 }, { unique: true }),
       base.collection("commandes").createIndex({ clientId: 1, creeLe: -1 }),
@@ -140,9 +143,12 @@ function amorcer() {
     // mise à niveau : paniers créés avant l'ajout des champs clientId / sessionId du diagramme
     await base.collection<PanierDoc>("paniers").updateMany({ clientId: { $exists: false }, proprietaire: { $not: /^visiteur:/ } }, [{ $set: { clientId: "$proprietaire", sessionId: null } }]);
     await base.collection<PanierDoc>("paniers").updateMany({ clientId: { $exists: false } }, [{ $set: { clientId: null, sessionId: { $substrCP: ["$proprietaire", 9, 200] } } }]);
-    if (process.env.MONGODB_DEMO === "false") return;
     const meta = base.collection<{ _id: string; le: Date }>("meta");
-    if (await meta.findOne({ _id: "demo-module-c" })) return;
+    if (!(await meta.findOne({ _id: "codes-promo-module-c" }))) {
+      await insererCodesPromo();
+      await meta.updateOne({ _id: "codes-promo-module-c" }, { $set: { le: new Date() } }, { upsert: true });
+    }
+    if (process.env.MONGODB_DEMO !== "true" || (await meta.findOne({ _id: "demo-module-c" }))) return;
     await insererDemo();
     await meta.insertOne({ _id: "demo-module-c", le: new Date() });
   })().catch((e) => {
@@ -150,6 +156,42 @@ function amorcer() {
     throw e;
   });
   return amorcage;
+}
+
+/**
+ * Avis créés hors du module C (ancien script de données : champ `statutModeration`, sans ligne de commande) :
+ * convertis au format du module C pour être affichés et ne pas bloquer l'index unique sur `ligneCommandeId`.
+ */
+async function migrerAvisAnciens() {
+  const base = await getDb();
+  const col = base.collection("avis");
+  const anciens = await col.find({ ligneCommandeId: { $exists: false } }).toArray();
+  if (!anciens.length) return 0;
+  for (const a of anciens) {
+    const id = `av-${String(a._id)}`;
+    const produit = await base.collection("products").findOne({ _id: a.produitId }, { projection: { name: 1 } });
+    await col.updateOne(
+      { _id: a._id },
+      {
+        $set: {
+          id,
+          produitId: String(a.produitId),
+          produitNom: a.produitNom ?? produit?.name ?? "",
+          fournisseurId: a.fournisseurId ? String(a.fournisseurId) : null,
+          ligneCommandeId: `import-${String(a._id)}`,
+          statut: a.statutModeration === "MASQUE" ? "MASQUE" : "VISIBLE",
+          clientId: null,
+          achatVerifie: Boolean(a.achatVerifie),
+          creeLe: (a.creeLe instanceof Date ? a.creeLe : new Date(a.creeLe ?? Date.now())).toISOString(),
+        },
+        $unset: { statutModeration: "" },
+      },
+    );
+  }
+  // note moyenne des produits concernés (contrat du module B)
+  const { majNoteProduit } = await import("@/server/contracts/catalogue");
+  for (const produitId of new Set(anciens.map((a) => String(a.produitId)))) await majNoteProduit(produitId);
+  return anciens.length;
 }
 
 const ADRESSE_DEMO: Adresse = {
@@ -197,6 +239,18 @@ function versDoc(s: SousCommande, clientId: string): SousCommandeDoc {
 const statutCommandeDemo = (statuts: StatutSousCommande[]): StatutCommande =>
   statuts.every((s) => s === "LIVREE") ? "LIVREE" : statuts.every((s) => ["ANNULEE", "REFUSEE"].includes(s)) ? "ANNULEE" : "PAYEE";
 
+/** Codes promo de lancement (EF-33) ; un code déjà présent n'est jamais écrasé. */
+async function insererCodesPromo() {
+  const now = new Date();
+  const finAnnee = new Date(Date.UTC(now.getUTCFullYear() + 1, 11, 31));
+  const codes: CodePromoDoc[] = [
+    { code: "DEGLA10", type: "POURCENTAGE", valeur: 10, fournisseurId: null, montantMinimum: 0, debut: now, fin: finAnnee, utilisationsMax: null, utilisations: 0, actif: true },
+    { code: "BIENVENUE5", type: "MONTANT_FIXE", valeur: 5000, fournisseurId: null, montantMinimum: 30000, debut: now, fin: finAnnee, utilisationsMax: 500, utilisations: 0, actif: true },
+  ];
+  const col = (await getDb()).collection<CodePromoDoc>("codesPromo");
+  for (const c of codes) await col.updateOne({ code: c.code }, { $setOnInsert: c }, { upsert: true });
+}
+
 async function insererDemo() {
   const base = await getDb();
   const commandes: CommandeDoc[] = [];
@@ -228,21 +282,14 @@ async function insererDemo() {
     }
   });
 
-  const now = new Date();
-  const finAnnee = new Date(Date.UTC(now.getUTCFullYear() + 1, 11, 31));
   await Promise.all([
     base.collection<CommandeDoc>("commandes").insertMany(commandes),
     base.collection<SousCommandeDoc>("sousCommandes").insertMany([...sousCommandes.values()]),
     base.collection<PanierDoc>("paniers").updateOne(
       { proprietaire: "u-sarra" },
-      { $setOnInsert: { proprietaire: "u-sarra", clientId: "u-sarra", sessionId: null, lignes: PANIER_DEMO, majLe: now } },
+      { $setOnInsert: { proprietaire: "u-sarra", clientId: "u-sarra", sessionId: null, lignes: PANIER_DEMO, majLe: new Date() } },
       { upsert: true },
     ),
-    base.collection<CodePromoDoc>("codesPromo").insertMany([
-      { code: "DEGLA10", type: "POURCENTAGE", valeur: 10, fournisseurId: null, montantMinimum: 0, debut: now, fin: finAnnee, utilisationsMax: null, utilisations: 0, actif: true },
-      { code: "BIENVENUE5", type: "MONTANT_FIXE", valeur: 5000, fournisseurId: null, montantMinimum: 30000, debut: now, fin: finAnnee, utilisationsMax: 500, utilisations: 0, actif: true },
-      { code: "BENAMOR15", type: "POURCENTAGE", valeur: 15, fournisseurId: "f-ben-amor", montantMinimum: 20000, debut: now, fin: finAnnee, utilisationsMax: null, utilisations: 0, actif: true },
-    ]),
     base.collection<AvisDoc>("avis").insertMany(AVIS.map((a) => ({ ...a, clientId: null, ligneCommandeId: `demo-${a.id}`, statut: "VISIBLE" as const }))),
     base.collection<LitigeDoc>("litiges").insertMany(LITIGES.map((l) => ({ ...l, clientId: "u-demo" }))),
     base.collection<VersementDoc>("versements").insertMany(VERSEMENTS.map((v) => ({ ...v, fournisseurId: "f-ben-amor", sousCommandes: [] }))),

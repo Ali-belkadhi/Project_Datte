@@ -61,3 +61,8 @@ node_modules/
 .cache/
 .env
 .env.local
+
+# artefacts locaux : documents générés par npm run seed, rapports Playwright
+/public/uploads/seed-*
+/test-results/
+/playwright-report/
