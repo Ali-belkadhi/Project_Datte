@@ -20,7 +20,11 @@ const identite = (p: string) => (p.startsWith("visiteur:") ? { clientId: null, s
  */
 async function proprietaire(creer = false): Promise<string | null> {
   const u = await getUtilisateurCourant().catch(() => null);
-  if (u?.role === "CLIENT") return u.id;
+  if (u?.role === "CLIENT") {
+    // client qui vient de se connecter avec un panier invité : fusion automatique (EF-30)
+    if ((await cookies()).get(COOKIE_VISITEUR)) await fusionnerPanierVisiteur(u.id);
+    return u.id;
+  }
   const jar = await cookies();
   const existant = jar.get(COOKIE_VISITEUR)?.value;
   if (existant) return `visiteur:${existant}`;
@@ -119,7 +123,11 @@ export async function fusionnerPanierVisiteur(clientId: string) {
     await col.updateOne({ proprietaire: clientId }, { $set: { lignes: [...fusion.values()], majLe: new Date(), ...identite(clientId) } }, { upsert: true });
   }
   await col.deleteOne({ proprietaire: `visiteur:${visiteur}` });
-  jar.delete(COOKIE_VISITEUR);
+  try {
+    jar.delete(COOKIE_VISITEUR);
+  } catch {
+    // rendu d'une page : cookie non modifiable ici, le panier invité est déjà fusionné et vidé
+  }
 }
 
 export { scinderParFournisseur, totauxPanier } from "@/lib/panier";

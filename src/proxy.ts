@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const CLIENT_PATHS = ["/compte", "/panier", "/commande", "/assistant"];
+// /panier et /assistant restent ouverts aux visiteurs (panier invité EF-30, assistant IA-C) ;
+// le checkout (/commande) et le compte exigent une connexion.
+const CLIENT_PATHS = ["/compte", "/commande"];
 const FOURNISSEUR_PATHS = ["/vendeur", "/fournisseur"];
 const ADMIN_PATHS = ["/admin"];
 
