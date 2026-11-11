@@ -13,7 +13,7 @@ import { ForbiddenError, NotFoundError } from "@/server/core/errors";
 import { db, prochainNumero, SANS_ID, type CommandeDoc, type HistoriqueStatut, type SousCommandeDoc } from "../repositories/mongo";
 import { evaluerCodePromo, consommerCodePromo } from "./codes-promo";
 import { encaisserALaLivraison, initierPaiement, rembourserCommande } from "./paiements";
-import { calculerCommission } from "./versements";
+import { calculerCommission, tauxCommission } from "./versements";
 
 /* ----------------------------- Lecture / vues ---------------------------- */
 
@@ -132,6 +132,7 @@ export async function creerCommande({ lignes, adresse, livraison, methodePaiemen
   const creeLe = new Date().toISOString();
   const carte = methodePaiement !== "A_LA_LIVRAISON";
 
+  const taux = new Map(await Promise.all(groupes.map(async (g) => [g.fournisseurId, await tauxCommission(g.fournisseurId)] as const)));
   const sousCommandes: SousCommandeDoc[] = groupes.map((g, i) => {
     const frais = livraison[g.fournisseurId] === "express" ? LIVRAISON.express.prix : g.frais;
     const scNumero = `${numero}-${String.fromCharCode(65 + i)}`;
@@ -161,7 +162,7 @@ export async function creerCommande({ lignes, adresse, livraison, methodePaiemen
       sousTotal: g.sousTotal,
       fraisLivraison: frais,
       remise: promo?.parFournisseur[g.fournisseurId] ?? 0,
-      commission: calculerCommission(g.sousTotal),
+      commission: calculerCommission(g.sousTotal, taux.get(g.fournisseurId)!),
       creeLe,
       enAttentePaiement: carte,
       historique: [{ ancienStatut: null, nouveauStatut: "EN_ATTENTE", auteurId: u.id, date: creeLe }],
@@ -234,7 +235,7 @@ export async function surPaiementCommande(numero: string, reference: string, sta
 /* ---------------------------- Machine à états ---------------------------- */
 
 /** Transitions autorisées : la SEULE source de vérité du cycle de vie d'un colis. */
-const TRANSITIONS: Record<StatutSousCommande, StatutSousCommande[]> = {
+export const TRANSITIONS: Record<StatutSousCommande, StatutSousCommande[]> = {
   EN_ATTENTE: ["ACCEPTEE", "REFUSEE", "ANNULEE"],
   ACCEPTEE: ["EN_PREPARATION", "ANNULEE"],
   EN_PREPARATION: ["EXPEDIEE", "ANNULEE"],

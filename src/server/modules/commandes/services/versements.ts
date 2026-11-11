@@ -1,16 +1,29 @@
 // MODULE C — Commandes (Karim Ouertatani) — VersementService (EF-19) : reversement des ventes aux fournisseurs.
 import "server-only";
 import type { Versement } from "@/types/domain";
-import { getUtilisateurCourant } from "@/server/contracts/comptes";
+import { getFournisseur, getParametresPlateforme, getUtilisateurCourant } from "@/server/contracts/comptes";
 import { ForbiddenError } from "@/server/core/errors";
 import { db, prochainNumero, SANS_ID } from "../repositories/mongo";
 
-export const TAUX_COMMISSION = 8; // % — miroir de ParametresPlateforme.tauxCommission (module A)
+/** Taux de secours si les paramètres de la plateforme sont indisponibles. */
+export const TAUX_COMMISSION_DEFAUT = 8; // %
 /** Délai de rétractation avant de reverser un colis livré. */
 export const DELAI_VERSEMENT_JOURS = 7;
 
-/** Commission DEGLA sur un montant brut (millimes). */
-export const calculerCommission = (brut: number) => Math.round((brut * TAUX_COMMISSION) / 100);
+/**
+ * Taux de commission (%) d'un fournisseur : Fournisseur.tauxCommission s'il est défini,
+ * sinon ParametresPlateforme.tauxCommission (module A), sinon le taux de secours.
+ */
+export async function tauxCommission(fournisseurId?: string | null): Promise<number> {
+  const [f, p] = await Promise.all([
+    fournisseurId ? getFournisseur(fournisseurId).catch(() => null) : null,
+    getParametresPlateforme().catch(() => null),
+  ]);
+  return f?.tauxCommission ?? p?.tauxCommission ?? TAUX_COMMISSION_DEFAUT;
+}
+
+/** Commission DEGLA sur un montant brut (millimes), au taux donné en %. */
+export const calculerCommission = (brut: number, taux: number) => Math.round((brut * taux) / 100);
 
 const versVersement = ({ fournisseurId: _f, sousCommandes: _s, ...v }: Versement & Record<string, unknown>): Versement => v;
 

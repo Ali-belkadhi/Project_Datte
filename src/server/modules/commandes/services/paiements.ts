@@ -87,8 +87,10 @@ export async function confirmerPaiement(
   if (p.objet.type === "COMMANDE") {
     const { surPaiementCommande } = await import("./commandes");
     await surPaiementCommande(p.objet.reference, p.reference, statut);
-  } else if (statut === "REUSSI") {
-    // TODO(module B) : créditer le fournisseur (MouvementCredit3D ACHAT) — voir contrat statutPaiement().
+  } else {
+    // callback vers le module B : crédite (ou non) les crédits 3D achetés
+    const { confirmerAchatCredits3D } = await import("@/server/contracts/catalogue");
+    await confirmerAchatCredits3D({ reference: p.objet.reference, paiementReference: p.reference, montant: p.montant, statut });
   }
   return p;
 }

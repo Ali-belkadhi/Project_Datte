@@ -81,6 +81,8 @@ export type PhotoAvisDoc = { id: string; url: string };
 export type AvisDoc = Avis & { clientId: string | null; ligneCommandeId: string; statut: "VISIBLE" | "MASQUE"; photos?: PhotoAvisDoc[]; modifieLe?: string };
 export type LitigeDoc = Litige & { clientId: string; montantRembourse?: number; adminId?: string; clotureLe?: string };
 export type VersementDoc = Versement & { fournisseurId: string; sousCommandes: string[] };
+/** JournalAudit (classe du module A) : ici, l'usage de l'IA-C (tokens, durée, outils). */
+export type JournalAuditDoc = { utilisateurId: string | null; action: string; entite: string; entiteId: string; details?: Record<string, unknown>; ip?: string; creeLe: Date };
 
 /* ------------------------------ Collections ------------------------------ */
 
@@ -100,6 +102,7 @@ export const db = {
   avis: () => col<AvisDoc>("avis"),
   litiges: () => col<LitigeDoc>("litiges"),
   versements: () => col<VersementDoc>("versements"),
+  journalAudit: () => col<JournalAuditDoc>("journalAudit"),
 };
 
 export const SANS_ID = { projection: { _id: 0 } } as const;

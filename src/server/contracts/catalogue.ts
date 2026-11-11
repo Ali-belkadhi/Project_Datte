@@ -32,6 +32,17 @@ export async function majNoteProduit(_produitId: string) {
   return { demo: true };
 }
 
+/**
+ * Callback de PaiementService (module C) pour un achat de crédits 3D, appelé UNE seule fois
+ * (confirmation idempotente) quand le paiement Stripe aboutit ou échoue.
+ * `reference` = la référence passée par B à initierPaiement({ type: "CREDITS_3D", reference }).
+ * TODO(module B) : REUSSI → AchatCredits3D PAYE + MouvementCredit3D ACHAT (+ soldeCredits3D) + notifier(ACHAT_CREDITS_CONFIRME) ;
+ * ECHOUE → AchatCredits3D ECHOUE.
+ */
+export async function confirmerAchatCredits3D(_achat: { reference: string; paiementReference: string; montant: number; statut: "REUSSI" | "ECHOUE" }) {
+  return { demo: true };
+}
+
 export const rechercherProduits = (filtres: FiltresCatalogue): Promise<ProduitAvecVendeur[]> => listProduits(filtres);
 
 export const infosVariete = (slug: string): Promise<Variete | null> => getVariete(slug);

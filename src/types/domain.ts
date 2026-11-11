@@ -90,6 +90,8 @@ export interface Fournisseur {
   couleur: ShopTint;
   delaiExpedition: string;
   varietes: VarieteSlug[];
+  /** Commission propre au fournisseur, en % (absent = taux global de ParametresPlateforme). */
+  tauxCommission?: number;
 }
 
 export type ShopTint = "amber" | "date" | "palm" | "clay" | "night";
@@ -495,37 +497,3 @@ export interface DossierFournisseur {
   documents: DocumentFournisseur[];
 }
 
-/* ------------------------------------------------------------------ */
-/* Assistant (IA-C)                                                    */
-/* ------------------------------------------------------------------ */
-
-export type ResultatOutil =
-  | { outil: "recherche"; produits: ProduitAvecVendeur[] }
-  | { outil: "varietes"; comparaison: [Variete, Variete] }
-  | { outil: "suivi"; commandeNumero: string; etapes: EtapeSuivi[]; vendeur: string }
-  | {
-      outil: "ajout-panier";
-      produit: ProduitAvecVendeur;
-      quantiteGrammes: number;
-      total: number;
-    };
-
-export interface ScenarioAssistant {
-  id: string;
-  declencheurs: string[];
-  question: string;
-  reponse: string;
-  resultat?: ResultatOutil;
-  suite?: string;
-}
-
-/** Forme brute stockée dans `mocks/assistant-script.ts` (références, pas d'objets). */
-export type ResultatOutilSource =
-  | { outil: "recherche"; produitIds: string[] }
-  | { outil: "varietes"; varietes: [VarieteSlug, VarieteSlug] }
-  | { outil: "suivi"; commandeNumero: string }
-  | { outil: "ajout-panier"; produitId: string; quantiteGrammes: number };
-
-export interface ScenarioAssistantSource extends Omit<ScenarioAssistant, "resultat"> {
-  resultat?: ResultatOutilSource;
-}

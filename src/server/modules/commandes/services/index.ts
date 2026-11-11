@@ -8,4 +8,3 @@ export * from "./ventes";
 export * from "./avis";
 export * from "./litiges";
 export * from "./versements";
-export * from "./assistant";

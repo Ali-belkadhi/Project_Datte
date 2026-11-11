@@ -8,13 +8,17 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.117",
+    "@ai-sdk/react": "^4.0.173",
     "@hookform/resolvers": "^5.9.2",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
-    "ai": "^7.0.156",
+    "ai": "^7.0.169",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -56,6 +60,7 @@
     "prettier-plugin-tailwindcss": "^0.8.1",
     "prisma": "^7.10.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.12"
   }
 }

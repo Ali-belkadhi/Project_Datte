@@ -2,8 +2,6 @@ import { Suspense } from "react";
 import { Container } from "@/components/layout/section";
 import { PageHeader } from "@/components/layout/page-header";
 import { CatalogueView } from "@/features/catalogue/filtres";
-import { AssistantFab } from "@/features/commandes/assistant";
-import { getScenariosAssistant } from "@/server/modules/commandes/services/assistant";
 import { pageMetadata } from "@/lib/seo";
 import { listProduits } from "@/server/modules/catalogue/services/produits";
 import CatalogueLoading from "./loading";
@@ -12,7 +10,7 @@ export const metadata = pageMetadata("Catalogue", "Toutes les dattes et produits
 
 /** Catalogue (module B) — le filtrage et le tri se font en mémoire côté client, via l'URL. */
 export default async function CataloguePage() {
-  const [items, assistant] = await Promise.all([listProduits({}), getScenariosAssistant()]);
+  const items = await listProduits({});
   return (
     <Container className="space-y-8 py-8 md:py-12">
       <PageHeader
@@ -24,7 +22,6 @@ export default async function CataloguePage() {
       <Suspense fallback={<CatalogueLoading />}>
         <CatalogueView items={items} />
       </Suspense>
-      <AssistantFab data={assistant} />
     </Container>
   );
 }
