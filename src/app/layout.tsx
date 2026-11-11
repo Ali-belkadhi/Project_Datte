@@ -62,7 +62,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeInitializer />
         <TooltipProvider delayDuration={200}>
           {children}
-          <DevViewSwitcher />
+          {/* outil de démonstration du template : visible uniquement en développement */}
+          {process.env.NODE_ENV !== "production" && <DevViewSwitcher />}
           <PwaManager />
           <Toaster position="top-center" richColors={false} />
         </TooltipProvider>
