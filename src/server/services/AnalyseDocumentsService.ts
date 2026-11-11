@@ -4,8 +4,7 @@ import { connectMongoose } from "@/server/db/mongoose";
 import { Fournisseur, DocumentFournisseur, JournalAudit, User } from "@/server/models";
 import { getOpenRouterConfig } from "@/lib/ai";
 import sharp from "sharp";
-import fs from "node:fs";
-import path from "node:path";
+import { readMedia } from "@/server/integrations/stockage/media-local";
 // notifier imported dynamically
 
 const RATE = new Map<string, number[]>();
@@ -67,10 +66,11 @@ export function compareInCode(docType: string, declaredType: string, extracted: 
 
 async function readFileAsDataUrl(fichierUrl: string): Promise<string | null> {
   try {
-    const name = fichierUrl.replace(/^\/uploads\//, "");
-    const filePath = path.join(process.cwd(), "public", "uploads", name);
-    if (!fs.existsSync(filePath)) return null;
-    let buf = fs.readFileSync(filePath);
+    // fichier stocké dans MongoDB (GridFS) : /api/media/uploads/<nom> (ou ancienne URL /uploads/<nom>)
+    const name = fichierUrl.replace(/^\/api\/media\/uploads\//, "").replace(/^\/uploads\//, "");
+    const fichier = await readMedia(["uploads", name]);
+    if (!fichier) return null;
+    let buf: Buffer = fichier.data;
     // resize if image
     if (/\.(jpe?g|png|webp)$/i.test(name)) {
       try {

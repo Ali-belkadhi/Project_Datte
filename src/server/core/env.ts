@@ -12,7 +12,11 @@ export const env = {
   // Futures variables — non utilisées dans le template
   DATABASE_URL: process.env.DATABASE_URL,
   MONGODB_URI: process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/degla",
-  APP_URL: process.env.APP_URL ?? "http://localhost:3000",
+  // sur Vercel, repli sur l'URL de production du projet si APP_URL n'est pas défini
+  APP_URL:
+    process.env.APP_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "") ||
+    "http://localhost:3000",
   AUTH_SECRET: process.env.AUTH_SECRET,
   HF_TOKEN: process.env.HF_TOKEN,
   TRELLIS_SPACE: process.env.TRELLIS_SPACE ?? "trellis-community/TRELLIS",

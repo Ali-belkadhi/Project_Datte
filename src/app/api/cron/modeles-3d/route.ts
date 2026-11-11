@@ -9,7 +9,8 @@ import { creditsRepository, modele3DRepository, produitRepository } from "@/serv
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const secret = searchParams.get("secret");
+    // Vercel Cron envoie « Authorization: Bearer <CRON_SECRET> » ; ?secret= reste accepté (appel manuel)
+    const secret = searchParams.get("secret") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
     const cronSecret = process.env.CRON_SECRET;
 
     if (!cronSecret || secret !== cronSecret) {

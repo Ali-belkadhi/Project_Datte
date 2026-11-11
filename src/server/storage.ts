@@ -1,30 +1,27 @@
 import "server-only";
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { deleteMedia, saveMediaNamed } from "@/server/integrations/stockage/media-local";
 
 export interface StorageProvider {
   save(file: Buffer, filename: string, mime: string): Promise<string>;
   delete(url: string): Promise<void>;
 }
 
-class LocalDiskStorage implements StorageProvider {
-  private base = path.join(process.cwd(), "public", "uploads");
-
-  async save(file: Buffer, filename: string): Promise<string> {
-    await fs.mkdir(this.base, { recursive: true });
-    const target = path.join(this.base, filename);
-    await fs.writeFile(target, file);
-    return `/uploads/${filename}`;
+/**
+ * Fichiers envoyés par les utilisateurs (avatars, documents fournisseur, images) :
+ * enregistrés dans MongoDB (GridFS), compatibles Vercel. URL renvoyée : `/api/media/uploads/<nom>`.
+ */
+class GridFsStorage implements StorageProvider {
+  async save(file: Buffer, filename: string, mime: string): Promise<string> {
+    return saveMediaNamed("uploads", file, filename, mime);
   }
 
   async delete(url: string): Promise<void> {
-    const name = url.replace(/^\/uploads\//, "");
     try {
-      await fs.unlink(path.join(this.base, name));
+      await deleteMedia(url);
     } catch {
       // ignore
     }
   }
 }
 
-export const storage: StorageProvider = new LocalDiskStorage();
+export const storage: StorageProvider = new GridFsStorage();

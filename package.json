@@ -23,7 +23,8 @@
     "desktop:dist": "node scripts/build-desktop.cjs",
     "desktop:dev": "electron desktop",
     "blockchain:migrate-tokenized": "node scripts/migrate-tokenized-traceability.mjs",
-    "test:commandes": "vitest run src/server/modules/commandes"
+    "test:commandes": "vitest run src/server/modules/commandes",
+    "media:migrer": "node scripts/migrer-medias-gridfs.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.117",

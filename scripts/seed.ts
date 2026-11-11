@@ -15,7 +15,23 @@ async function main() {
   const { User, Client, Fournisseur, Adresse, DocumentFournisseur, Conversation, Message, Signalement, Notification, JournalAudit, ParametresPlateforme } = await import("../src/server/models");
   const uploadsDir = path.join(process.cwd(), "public", "uploads");
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-  function saveFile(buf: Buffer, name: string) { fs.writeFileSync(path.join(uploadsDir, name), buf); return `/uploads/${name}`; }
+  // Documents enregistrés dans MongoDB (GridFS, bucket « media »), comme les envois de l'application :
+  // ils restent disponibles une fois déployée (Vercel n'a pas de disque persistant). Copie locale conservée.
+  const mongooseSeed = (await import("mongoose")).default;
+  const { GridFSBucket } = await import("mongodb");
+  const mediaBucket = new GridFSBucket(mongooseSeed.connection.db as never, { bucketName: "media" });
+  async function saveFile(buf: Buffer, name: string) {
+    fs.writeFileSync(path.join(uploadsDir, name), buf);
+    const filename = `uploads/${name}`;
+    for (const ancien of await mediaBucket.find({ filename }).toArray()) await mediaBucket.delete(ancien._id);
+    await new Promise<void>((resolve, reject) => {
+      const flux = mediaBucket.openUploadStream(filename, { metadata: { contentType: "image/png" } });
+      flux.once("finish", () => resolve());
+      flux.once("error", reject);
+      flux.end(buf);
+    });
+    return `/api/media/${filename}`;
+  }
   function encryptRib(rib: string) {
     // crypto already imported
     const k = process.env.RIB_ENCRYPTION_KEY || "dev-rib-key-change-me";
@@ -348,7 +364,7 @@ async function main() {
       const buf = verifie
         ? await sharp(documentLegalSvg(t, { titulaire: legal.nom, numero: legal.numero, expiration: dateFr(legal.expiration) })).png().toBuffer()
         : fs.readFileSync(path.join(seedDir, specimen));
-      const url = saveFile(buf, `seed-${f._id}-${t}.png`);
+      const url = await saveFile(buf, `seed-${f._id}-${t}.png`);
       await (DocumentFournisseur as any).create({
         fournisseurId: f._id,
         type: t,
