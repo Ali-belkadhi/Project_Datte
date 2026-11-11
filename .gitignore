@@ -66,3 +66,6 @@ node_modules/
 /public/uploads/seed-*
 /test-results/
 /playwright-report/
+
+# variables d environnement a recopier dans Vercel (contient des secrets)
+/variables-vercel.md
