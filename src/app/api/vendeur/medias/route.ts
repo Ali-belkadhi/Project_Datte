@@ -5,8 +5,11 @@ import { imageToGlb } from "@/server/integrations/trellis/client";
 import { saveMedia } from "@/server/integrations/stockage/media-local";
 
 export const runtime = "nodejs";
-/** La génération 3D peut prendre plusieurs minutes (file d'attente GPU). */
-export const maxDuration = 600;
+/**
+ * La génération 3D peut prendre plusieurs minutes (file d'attente GPU).
+ * 300 s = maximum autorisé par Vercel sur l'offre Hobby (au-delà, le déploiement est refusé).
+ */
+export const maxDuration = 300;
 
 const ALLOWED: Record<string, string> = { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp" };
 const MAX_BYTES = 10 * 1024 * 1024;
