@@ -1,0 +1,85 @@
+// MODULE C — Commandes (Karim Ouertatani) — VersementService (EF-19) : reversement des ventes aux fournisseurs.
+import "server-only";
+import type { Versement } from "@/types/domain";
+import { getFournisseur, getParametresPlateforme, getUtilisateurCourant } from "@/server/contracts/comptes";
+import { ForbiddenError } from "@/server/core/errors";
+import { db, prochainNumero, SANS_ID } from "../repositories/mongo";
+
+/** Taux de secours si les paramètres de la plateforme sont indisponibles. */
+export const TAUX_COMMISSION_DEFAUT = 8; // %
+/** Délai de rétractation avant de reverser un colis livré. */
+export const DELAI_VERSEMENT_JOURS = 7;
+
+/**
+ * Taux de commission (%) d'un fournisseur : Fournisseur.tauxCommission s'il est défini,
+ * sinon ParametresPlateforme.tauxCommission (module A), sinon le taux de secours.
+ */
+export async function tauxCommission(fournisseurId?: string | null): Promise<number> {
+  const [f, p] = await Promise.all([
+    fournisseurId ? getFournisseur(fournisseurId).catch(() => null) : null,
+    getParametresPlateforme().catch(() => null),
+  ]);
+  return f?.tauxCommission ?? p?.tauxCommission ?? TAUX_COMMISSION_DEFAUT;
+}
+
+/** Commission DEGLA sur un montant brut (millimes), au taux donné en %. */
+export const calculerCommission = (brut: number, taux: number) => Math.round((brut * taux) / 100);
+
+const versVersement = ({ fournisseurId: _f, sousCommandes: _s, ...v }: Versement & Record<string, unknown>): Versement => v;
+
+export async function mesVersements() {
+  const u = await getUtilisateurCourant();
+  const versements = (await (await db.versements()).find({ fournisseurId: u.fournisseurId ?? "" }, SANS_ID).sort({ periodeFin: -1 }).toArray()).map(versVersement);
+  const prochain = versements.find((v) => v.statut === "PLANIFIE") ?? null;
+  const totalVerse = versements.filter((v) => v.statut === "EFFECTUE").reduce((a, v) => a + v.montantNet, 0);
+  return { versements, prochain, totalVerse };
+}
+
+/**
+ * Tâche planifiée (api/cron/versements) : regroupe, par fournisseur, les colis livrés depuis plus de
+ * DELAI_VERSEMENT_JOURS et pas encore reversés, et crée un Versement PLANIFIE (brut − commission − remboursements).
+ */
+export async function planifierVersements(maintenant = new Date()) {
+  const limite = new Date(maintenant.getTime() - DELAI_VERSEMENT_JOURS * 864e5).toISOString();
+  const colis = await (await db.sousCommandes()).find({ statut: { $in: ["LIVREE", "REMBOURSEE"] }, livreeLe: { $lte: limite }, versementId: { $exists: false } }).toArray();
+  const parFournisseur = new Map<string, typeof colis>();
+  for (const s of colis) parFournisseur.set(s.fournisseurId, [...(parFournisseur.get(s.fournisseurId) ?? []), s]);
+
+  const crees: string[] = [];
+  for (const [fournisseurId, liste] of parFournisseur) {
+    const brut = liste.reduce((a, s) => a + s.sousTotal + s.fraisLivraison - (s.remise ?? 0) - (s.montantRembourse ?? 0), 0);
+    const commission = liste.reduce((a, s) => a + s.commission, 0);
+    const dates = liste.map((s) => s.livreeLe!).sort();
+    const id = `VRS-${maintenant.getFullYear()}-${String(await prochainNumero("versement", 0)).padStart(5, "0")}`;
+    const prevu = new Date(maintenant.getTime() + 2 * 864e5).toISOString();
+    await (await db.versements()).insertOne({
+      id,
+      reference: id,
+      periodeDebut: dates[0],
+      periodeFin: dates[dates.length - 1],
+      montantBrut: Math.max(0, brut),
+      commission,
+      montantNet: Math.max(0, brut - commission),
+      statut: "PLANIFIE",
+      dateVersement: prevu,
+      fournisseurId,
+      sousCommandes: liste.map((s) => s.numero),
+    });
+    await (await db.sousCommandes()).updateMany({ numero: { $in: liste.map((s) => s.numero) } }, { $set: { versementId: id } });
+    crees.push(id);
+  }
+  return { versements: crees, colis: colis.length };
+}
+
+/** Virement exécuté (ou échoué) : à appeler après l'ordre de virement bancaire. */
+export async function marquerVersement(id: string, statut: "EFFECTUE" | "ECHOUE") {
+  const r = await (await db.versements()).updateOne({ id, statut: "PLANIFIE" }, { $set: { statut, dateVersement: new Date().toISOString() } });
+  if (!r.matchedCount) throw new ForbiddenError("Seul un versement planifié peut être marqué.");
+  // un virement échoué libère ses colis : ils seront repris au prochain calcul
+  if (statut === "ECHOUE") await (await db.sousCommandes()).updateMany({ versementId: id }, { $unset: { versementId: "" } });
+}
+
+/** Tous les versements (admin), du plus récent au plus ancien. */
+export async function tousLesVersements() {
+  return (await db.versements()).find({}, SANS_ID).sort({ periodeFin: -1 }).limit(200).toArray();
+}

@@ -1,0 +1,1 @@
+**Module A — Comptes** · responsable : Baha Ayadi · authentification, profil, adresses, notifications, messagerie, onboarding et boutique vendeur, administration des fournisseurs, modération, paramètres, IA-A.

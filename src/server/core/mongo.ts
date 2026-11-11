@@ -1,0 +1,36 @@
+import "server-only";
+import mongoose from "mongoose";
+import { MongoClient, type Db } from "mongodb";
+
+/**
+ * Connexions MongoDB (une seule base : MONGODB_URI).
+ *  - `connectDB()` : mongoose (modules A et B, modèles).
+ *  - `getDb()`     : driver natif (module C, collections commandes / paiements / panier…).
+ * Les promesses sont mises en cache sur `globalThis` pour survivre au rechargement à chaud de `next dev`.
+ */
+const globalCache = globalThis as unknown as { __deglaMongo?: Promise<typeof mongoose>; __deglaMongoClient?: Promise<MongoClient> };
+
+export async function connectDB() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error("MONGODB_URI est absent de .env.local (voir .env.example).");
+  if (mongoose.connection.readyState === 1) return;
+  globalCache.__deglaMongo ??= mongoose.connect(uri).catch((e) => {
+    globalCache.__deglaMongo = undefined;
+    throw e;
+  });
+  await globalCache.__deglaMongo;
+}
+
+export const connectMongo = connectDB;
+
+/** Base du driver natif (module C). Connexion paresseuse, retentée si MongoDB n'était pas démarré. */
+export async function getDb(): Promise<Db> {
+  const uri = process.env.MONGODB_URI ?? "mongodb://localhost:27017/degla";
+  globalCache.__deglaMongoClient ??= new MongoClient(uri, { ignoreUndefined: true, serverSelectionTimeoutMS: 4000 })
+    .connect()
+    .catch((e) => {
+      globalCache.__deglaMongoClient = undefined;
+      throw e;
+    });
+  return (await globalCache.__deglaMongoClient).db();
+}

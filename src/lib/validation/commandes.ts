@@ -1,0 +1,149 @@
+/**
+ * MODULE C — schémas Zod partagés client + serveur (Karim Ouertatani).
+ */
+import { z } from "zod";
+import { GOUVERNORATS } from "@/types/enums";
+import { PAS_POIDS } from "@/lib/constants";
+
+/** EF-31 : une datte se vend au kilo, par pas de 0,5 kg (minimum 0,5 kg). */
+const grammes = (min: number) => z.number().int().min(min).max(50000).multipleOf(PAS_POIDS, "Le poids se choisit par pas de 0,5 kg.");
+
+export const lignePanierSchema = z
+  .object({
+    produitId: z.string().min(1),
+    quantiteGrammes: grammes(PAS_POIDS).optional(),
+    quantiteUnites: z.number().int().min(1).max(99).optional(),
+  })
+  .refine((l) => (l.quantiteGrammes === undefined) !== (l.quantiteUnites === undefined), {
+    message: "Indiquez un poids (datte) OU une quantité (dérivé).",
+  });
+
+export const majLignePanierSchema = z.object({
+  ligneId: z.string().min(1),
+  quantiteGrammes: grammes(0).optional(), // 0 = retirer la ligne
+  quantiteUnites: z.number().int().min(0).optional(),
+});
+
+export const retraitLignePanierSchema = z.object({ produitId: z.string().min(1) });
+
+const codeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9]{4,16}$/, "Code invalide.");
+
+const lignesSchema = z
+  .array(z.object({ produitId: z.string().min(1), quantiteGrammes: z.number().int().positive().optional(), quantiteUnites: z.number().int().positive().optional() }))
+  .min(1, "Votre panier est vide.");
+
+export const codePromoSchema = z.object({ code: codeSchema, lignes: lignesSchema.optional() });
+
+/** Adresse saisie au checkout (à la main ou choisie sur la carte). Coordonnées facultatives. */
+export const adresseLivraisonSchema = z.object({
+  destinataire: z.string().trim().min(2, "Nom du destinataire requis."),
+  telephone: z
+    .string()
+    .trim()
+    .regex(/^(\+216\s?)?[2-9]\d(\s?\d{3}){2}$/, "Numéro tunisien attendu (ex. +216 22 345 678)."),
+  ligne1: z.string().trim().min(4, "Adresse requise."),
+  ligne2: z.string().trim().max(120).optional(),
+  ville: z.string().trim().min(2, "Ville requise."),
+  codePostal: z.string().regex(/^\d{4}$/, "Code postal à 4 chiffres."),
+  gouvernorat: z.enum(GOUVERNORATS, { error: "Choisissez un gouvernorat." }),
+  // bornes larges autour de la Tunisie
+  latitude: z.number().min(30, "Le point de livraison doit être en Tunisie.").max(38, "Le point de livraison doit être en Tunisie.").optional(),
+  longitude: z.number().min(7, "Le point de livraison doit être en Tunisie.").max(12, "Le point de livraison doit être en Tunisie.").optional(),
+});
+
+export const checkoutSchema = z
+  .object({
+    lignes: lignesSchema,
+    /** Adresse enregistrée du client… */
+    adresseId: z.string().min(1).optional(),
+    /** …ou adresse saisie / choisie sur la carte. */
+    adresseLivraison: adresseLivraisonSchema.optional(),
+    livraison: z.record(z.string(), z.enum(["standard", "express"])),
+    methodePaiement: z.enum(["KONNECT", "FLOUCI", "CARTE", "A_LA_LIVRAISON"]),
+    codePromo: codeSchema.optional(),
+  })
+  .refine((c) => c.adresseId || c.adresseLivraison, { message: "Choisissez une adresse de livraison.", path: ["adresseId"] });
+
+export const reprisePaiementSchema = z.object({ numero: z.string().min(1) });
+
+export const annulationSchema = z.object({ numero: z.string().min(1), motif: z.string().trim().optional() });
+
+export const sousCommandeSchema = z.object({ numero: z.string().min(1) });
+
+export const refusSousCommandeSchema = sousCommandeSchema.extend({
+  motif: z.string().trim().min(5, "Indiquez un motif de refus."),
+});
+
+export const expeditionSchema = sousCommandeSchema.extend({
+  transporteur: z.string().min(2, "Choisissez un transporteur."),
+  numeroSuivi: z.string().trim().min(6, "Numéro de suivi requis."),
+});
+
+export const avisSchema = z.object({
+  ligneCommandeId: z.string().min(1),
+  note: z.number().int().min(1, "Choisissez une note.").max(5),
+  commentaire: z.string().trim().min(10, "Quelques mots sur le produit (10 caractères minimum).").max(1000),
+  photos: z.array(z.string()).max(3).optional(),
+});
+
+export const reponseAvisSchema = z.object({
+  avisId: z.string().min(1),
+  reponse: z.string().trim().min(5, "Votre réponse est trop courte.").max(800),
+});
+
+export const litigeSchema = z.object({
+  sousCommandeNumero: z.string().min(1),
+  motif: z.enum(["NON_RECU", "ABIME", "NON_CONFORME", "AUTRE"]),
+  description: z.string().trim().min(15, "Décrivez le problème (15 caractères minimum)."),
+});
+
+export const resolutionLitigeSchema = z.object({
+  litigeId: z.string().min(1),
+  decision: z.enum(["RESOLU_CLIENT", "RESOLU_FOURNISSEUR", "CLOS"]),
+  montantRembourse: z.number().int().min(0).optional(),
+  commentaire: z.string().trim().optional(),
+});
+
+export type AdresseLivraisonInput = z.infer<typeof adresseLivraisonSchema>;
+export type CheckoutInput = z.infer<typeof checkoutSchema>;
+export type AvisInput = z.infer<typeof avisSchema>;
+export type ExpeditionInput = z.infer<typeof expeditionSchema>;
+
+/* ------------------------------ Admin : codes promo ------------------------------ */
+
+export const codePromoAdminSchema = z
+  .object({
+    code: codeSchema,
+    type: z.enum(["POURCENTAGE", "MONTANT_FIXE"]),
+    valeur: z.number().int().positive("Valeur requise."),
+    fournisseurId: z.string().optional(),
+    montantMinimum: z.number().int().min(0),
+    debut: z.coerce.date(),
+    fin: z.coerce.date(),
+    utilisationsMax: z.number().int().positive().optional(),
+  })
+  .refine((c) => c.fin > c.debut, { message: "La date de fin doit suivre la date de début.", path: ["fin"] });
+
+export const basculeCodePromoSchema = z.object({ code: codeSchema, actif: z.boolean() });
+
+export const suppressionCodePromoSchema = z.object({ code: codeSchema });
+
+/* ------------------------------ Avis : CRUD ------------------------------ */
+
+export const modificationAvisSchema = z.object({
+  avisId: z.string().min(1),
+  note: z.number().int().min(1, "Choisissez une note.").max(5),
+  commentaire: z.string().trim().min(10, "Quelques mots sur le produit (10 caractères minimum).").max(1000),
+});
+
+export const suppressionAvisSchema = z.object({ avisId: z.string().min(1) });
+
+export const moderationAvisSchema = z.object({ avisId: z.string().min(1), statut: z.enum(["VISIBLE", "MASQUE"]) });
+
+/* ------------------------------- Versements ------------------------------ */
+
+export const versementSchema = z.object({ id: z.string().min(1), statut: z.enum(["EFFECTUE", "ECHOUE"]) });
