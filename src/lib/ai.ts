@@ -34,32 +34,43 @@ const GEMINI_PAR_DEFAUT = "gemini-3.5-flash";
 const OPENROUTER_PAR_DEFAUT = "google/gemini-2.5-flash";
 const GATEWAY_PAR_DEFAUT = "anthropic/claude-sonnet-5-5";
 
-export type FournisseurIA = "google" | "openrouter" | "gateway" | null;
+export type FournisseurIA = "google" | "openrouter" | "gateway";
+export type ModeleConfigure = { fournisseur: FournisseurIA; nom: string; modele: LanguageModel };
 
-export function fournisseurIA(): FournisseurIA {
-  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) return "google";
-  if (process.env.OPENROUTER_API_KEY) return "openrouter";
-  if (process.env.AI_GATEWAY_API_KEY) return "gateway";
-  return null;
+/**
+ * Modèles configurés, par ordre de priorité : chaque clé présente ajoute un modèle.
+ * L'assistant IA-C essaie le suivant si un modèle échoue (quota gratuit Gemini dépassé, panne…).
+ */
+export function modelesIA(): ModeleConfigure[] {
+  const nom = process.env.AI_MODEL?.trim();
+  const liste: ModeleConfigure[] = [];
+  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    const n = nom?.replace(/^google\//, "") || GEMINI_PAR_DEFAUT;
+    liste.push({ fournisseur: "google", nom: n, modele: google(n) });
+  }
+  if (process.env.OPENROUTER_API_KEY) {
+    const n = process.env.OPENROUTER_MODEL?.trim() || OPENROUTER_PAR_DEFAUT;
+    const openrouter = createOpenAICompatible({
+      name: "openrouter",
+      baseURL: OPENROUTER_BASE_URL,
+      apiKey: process.env.OPENROUTER_API_KEY,
+      headers: { "HTTP-Referer": process.env.APP_URL ?? "http://localhost:3000", "X-Title": "DEGLA" },
+    });
+    liste.push({ fournisseur: "openrouter", nom: n, modele: openrouter.chatModel(n) });
+  }
+  if (process.env.AI_GATEWAY_API_KEY) {
+    const n = nom && nom.includes("/") ? nom : GATEWAY_PAR_DEFAUT;
+    liste.push({ fournisseur: "gateway", nom: n, modele: n });
+  }
+  return liste;
 }
 
 /** Vrai si une clé est configurée ; sinon l'assistant IA-C passe en mode local. */
-export const iaDisponible = () => fournisseurIA() !== null;
+export const iaDisponible = () => modelesIA().length > 0;
 
-/** Modèle à passer aux fonctions du Vercel AI SDK (streamText, generateText…). */
+/** Premier modèle configuré (Vercel AI SDK : streamText, generateText…). */
 export function modeleIA(): LanguageModel {
-  const nom = process.env.AI_MODEL?.trim();
-  switch (fournisseurIA()) {
-    case "google":
-      return google(nom?.replace(/^google\//, "") || GEMINI_PAR_DEFAUT);
-    case "openrouter": {
-      const { apiKey, headers } = { apiKey: process.env.OPENROUTER_API_KEY!, headers: { "HTTP-Referer": process.env.APP_URL ?? "http://localhost:3000", "X-Title": "DEGLA" } };
-      const openrouter = createOpenAICompatible({ name: "openrouter", baseURL: OPENROUTER_BASE_URL, apiKey, headers });
-      return openrouter.chatModel(process.env.OPENROUTER_MODEL?.trim() || OPENROUTER_PAR_DEFAUT);
-    }
-    case "gateway":
-      return nom || GATEWAY_PAR_DEFAUT;
-    default:
-      throw new Error("Aucune clé IA : définissez GOOGLE_GENERATIVE_AI_API_KEY, OPENROUTER_API_KEY ou AI_GATEWAY_API_KEY dans .env.local.");
-  }
+  const [premier] = modelesIA();
+  if (!premier) throw new Error("Aucune clé IA : définissez GOOGLE_GENERATIVE_AI_API_KEY, OPENROUTER_API_KEY ou AI_GATEWAY_API_KEY dans .env.local.");
+  return premier.modele;
 }

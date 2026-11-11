@@ -30,9 +30,9 @@ Toute transition passe par `transition()` (contrôle + écriture atomique + `His
 
 - Serveur : `POST /api/ia/assistant` → `streamText` + `tool()` (`rechercherProduits`, `infosVariete`, `suivreCommande`, `ajouterAuPanier` **sans execute**).
 - Client : `useChat` (`features/commandes/assistant/use-assistant.ts`) ; la confirmation d'ajout passe par la Server Action puis `addToolOutput`.
-- Modèle : `src/lib/ai.ts` (`GOOGLE_GENERATIVE_AI_API_KEY` + `AI_MODEL=gemini-3.5-flash`, ou Vercel AI Gateway).
-- Offre gratuite Gemini = 5 requêtes/min : en cas de refus ou de silence > 10 s, l'assistant répond en mode local (mêmes outils, mêmes cartes).
-- Usage (tokens, durée, outils) journalisé dans la collection `journalAudit`.
+- Modèles : `src/lib/ai.ts`, essayés dans l'ordre : Gemini (`GOOGLE_GENERATIVE_AI_API_KEY`, `AI_MODEL`), OpenRouter (`OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, clé partagée avec IA-A / IA-B), Vercel AI Gateway.
+- Un modèle qui échoue (quota gratuit Gemini de 5 requêtes/min, crédits, panne, silence > 10 s) passe la main au suivant ; en dernier recours, mode local (mêmes outils, mêmes cartes).
+- Usage (fournisseur, modèle, tokens, durée, outils) journalisé dans le `JournalAudit` du module A (contrat `journaliser()`).
 
 ## Tests
 

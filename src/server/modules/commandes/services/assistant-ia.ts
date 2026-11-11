@@ -25,8 +25,9 @@ import { z } from "zod";
 import type { EtapeSuivi, ProduitAvecVendeur } from "@/types/domain";
 import type { VarieteSlug } from "@/types/model-source";
 import { VARIETY_ORDER, VARIETY_PRESETS } from "@/components/three/presets";
-import { iaDisponible, modeleIA } from "@/lib/ai";
+import { iaDisponible, modelesIA, type ModeleConfigure } from "@/lib/ai";
 import { infosVariete as contratVariete, rechercherProduits as contratRecherche } from "@/server/contracts/catalogue";
+import { journaliser as journaliserAudit } from "@/server/contracts/comptes";
 import { db } from "../repositories/mongo";
 import { suiviPourClient } from "./commandes";
 
@@ -158,67 +159,93 @@ const INSTRUCTIONS =
 /** Au-delà de ce silence du modèle, on répond avec le mode local. */
 const SILENCE_MAX_MS = 10_000;
 
-function fluxIA(messages: MessageAssistant[], clientId: string | null) {
+type Tentative = "ok" | "echec" | "echec-partiel";
+
+/**
+ * Une tentative avec un modèle : relaie son flux dans `writer`.
+ * Échec (quota, panne, silence > SILENCE_MAX_MS) : « echec » si rien n'a encore été écrit
+ * (on peut essayer le modèle suivant), « echec-partiel » sinon.
+ */
+async function essayerModele(
+  writer: UIMessageStreamWriter<MessageAssistant>,
+  { modele, nom, fournisseur }: ModeleConfigure,
+  messages: MessageAssistant[],
+  clientId: string | null,
+): Promise<Tentative> {
   const debut = Date.now();
+  const outils = creerOutilsAssistant(clientId);
+  const arret = new AbortController();
+  const result = streamText({
+    model: modele,
+    instructions: INSTRUCTIONS,
+    messages: await convertToModelMessages(messages),
+    tools: outils,
+    stopWhen: isStepCount(5),
+    abortSignal: arret.signal,
+    maxRetries: 0, // on échoue vite : le repli passe au modèle suivant
+    maxOutputTokens: 1024, // réponses courtes (2 à 4 phrases) ; évite les refus « crédits insuffisants »
+    onEnd: ({ totalUsage, steps }) =>
+      journaliser(clientId, {
+        mode: "ia",
+        fournisseur,
+        modele: nom,
+        tokensEntree: totalUsage.inputTokens ?? null,
+        tokensSortie: totalUsage.outputTokens ?? null,
+        dureeMs: Date.now() - debut,
+        outils: steps.flatMap((s) => s.toolCalls.map((c) => c.toolName)),
+      }),
+  });
+  let cause: unknown = null;
+  const lecteur = toUIMessageStream<typeof outils, MessageAssistant>({
+    stream: result.stream,
+    sendStart: false,
+    sendFinish: false,
+    onError: (e) => {
+      cause = e;
+      return "erreur";
+    },
+  }).getReader();
+
+  let contenu = false;
+  for (;;) {
+    let minuteur: ReturnType<typeof setTimeout> | undefined;
+    const silence = new Promise<"silence">((r) => (minuteur = setTimeout(() => r("silence"), SILENCE_MAX_MS)));
+    const lu = await Promise.race([lecteur.read(), silence]);
+    clearTimeout(minuteur);
+    const echec = lu === "silence" ? "aucune réponse du modèle" : !lu.done && (lu.value.type === "error" || lu.value.type === "abort") ? (cause ?? lu.value.type) : null;
+    if (echec) {
+      console.warn(`[assistant IA] échec ${fournisseur}/${nom} :`, echec instanceof Error ? echec.message.split("\n")[0] : echec);
+      arret.abort();
+      void lecteur.cancel().catch(() => {});
+      return contenu ? "echec-partiel" : "echec";
+    }
+    if (lu === "silence" || lu.done) return "ok";
+    // les étapes ne sont écrites qu'avec du contenu : un échec immédiat ne laisse aucune trace côté client
+    if (!contenu && lu.value.type === "start-step") continue;
+    if (lu.value.type === "text-delta" || lu.value.type.startsWith("tool-")) {
+      if (!contenu) writer.write({ type: "start-step" });
+      contenu = true;
+    }
+    writer.write(lu.value);
+  }
+}
+
+/** Mode IA : chaque modèle configuré est essayé dans l'ordre, puis le mode local en dernier recours. */
+function fluxIA(messages: MessageAssistant[], clientId: string | null) {
   return createUIMessageStream<MessageAssistant>({
     execute: async ({ writer }) => {
-      const outils = creerOutilsAssistant(clientId);
-      const arret = new AbortController();
-      const result = streamText({
-        model: modeleIA(),
-        instructions: INSTRUCTIONS,
-        messages: await convertToModelMessages(messages),
-        tools: outils,
-        stopWhen: isStepCount(5),
-        abortSignal: arret.signal,
-        // quota gratuit Gemini (5 req/min) : on échoue vite et on bascule sur le mode local
-        maxRetries: 0,
-        onEnd: ({ totalUsage, steps }) =>
-          journaliser(clientId, {
-            mode: "ia",
-            modele: process.env.AI_MODEL ?? null,
-            tokensEntree: totalUsage.inputTokens ?? null,
-            tokensSortie: totalUsage.outputTokens ?? null,
-            dureeMs: Date.now() - debut,
-            outils: steps.flatMap((s) => s.toolCalls.map((c) => c.toolName)),
-          }),
-      });
-      let cause: unknown = null;
-      const lecteur = toUIMessageStream<typeof outils, MessageAssistant>({
-        stream: result.stream,
-        onError: (e) => {
-          cause = e;
-          return "erreur";
-        },
-      }).getReader();
-
-      // Relais du flux du modèle. Repli sur le mode local si le modèle échoue (quota, panne)
-      // ou reste silencieux : Gemini gratuit garde parfois la connexion ouverte sans répondre.
-      let contenu = false;
-      for (;;) {
-        let minuteur: ReturnType<typeof setTimeout> | undefined;
-        const silence = new Promise<"silence">((r) => (minuteur = setTimeout(() => r("silence"), SILENCE_MAX_MS)));
-        const lu = await Promise.race([lecteur.read(), silence]);
-        clearTimeout(minuteur);
-        const echec = lu === "silence" ? "aucune réponse du modèle" : !lu.done && (lu.value.type === "error" || lu.value.type === "abort") ? (cause ?? lu.value.type) : null;
-        if (echec) {
-          console.warn("[assistant IA] repli sur le mode local :", echec instanceof Error ? echec.message.split("\n")[0] : echec);
-          arret.abort();
-          void lecteur.cancel().catch(() => {});
-          if (contenu) {
-            writer.write({ type: "text-start", id: "repli" });
-            writer.write({ type: "text-delta", id: "repli", delta: "\n\nL'assistant IA est très sollicité, je n'ai pas pu terminer. Réessayez dans un instant." });
-            writer.write({ type: "text-end", id: "repli" });
-          } else {
-            await ecrireLocal(writer, messages, clientId);
-          }
+      for (const m of modelesIA()) {
+        const r = await essayerModele(writer, m, messages, clientId);
+        if (r === "ok") return;
+        if (r === "echec-partiel") {
+          writer.write({ type: "text-start", id: "repli" });
+          writer.write({ type: "text-delta", id: "repli", delta: "\n\nL'assistant IA est très sollicité, je n'ai pas pu terminer. Réessayez dans un instant." });
+          writer.write({ type: "text-end", id: "repli" });
           return;
         }
-        if (lu === "silence" || lu.done) break;
-        if (lu.value.type === "finish") continue; // le message est clos par createUIMessageStream
-        if (lu.value.type === "text-delta" || lu.value.type.startsWith("tool-")) contenu = true;
-        writer.write(lu.value);
       }
+      console.warn("[assistant IA] repli sur le mode local");
+      await ecrireLocal(writer, messages, clientId);
     },
     onError: (e) => {
       console.error("[assistant IA]", e);
@@ -328,20 +355,9 @@ function texteApresConfirmation(m: MessageAssistant) {
 
 /* ------------------------------ Journalisation --------------------------- */
 
-/** Usage de l'IA (tokens, durée) dans le journal d'audit, pour suivre le coût (§12.1). */
+/** Usage de l'IA (tokens, durée, outils) dans le journal d'audit du module A, pour suivre le coût (§12.1). */
 async function journaliser(clientId: string | null, details: Record<string, unknown>) {
-  try {
-    await (await db.journalAudit()).insertOne({
-      utilisateurId: clientId,
-      action: "IA_ASSISTANT",
-      entite: "AssistantIA",
-      entiteId: clientId ?? "visiteur",
-      details,
-      creeLe: new Date(),
-    });
-  } catch (e) {
-    console.error("[assistant] journal d'audit", e);
-  }
+  await journaliserAudit({ utilisateurId: clientId, action: "IA_ASSISTANT", entite: "AssistantIA", entiteId: clientId ?? "visiteur", details });
 }
 
 /* -------------------------------- Entrée --------------------------------- */

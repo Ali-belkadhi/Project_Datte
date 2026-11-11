@@ -12,6 +12,9 @@ import {
 } from "@/server/modules/comptes/services";
 import { fournisseurRepository as _fournisseursLegacy } from "@/server/modules/comptes/repositories";
 import { getParametresPlateforme as _getParametres } from "@/server/modules/comptes/services/admin";
+import { connectMongoose } from "@/server/db/mongoose";
+import { JournalAudit } from "@/server/models";
+import mongoose from "mongoose";
 
 export { requireRole } from "@/server/core/rbac";
 
@@ -41,6 +44,19 @@ export const estFournisseurVerifie = (id: string): Promise<boolean> => _estVerif
 
 /** Paramètres globaux (taux de commission en %, frais de livraison…) — utilisé par C. */
 export const getParametresPlateforme = (): Promise<ParametresPlateforme> => _getParametres();
+
+/**
+ * Journal d'audit (classe JournalAudit du module A), utilisé par C pour tracer l'usage de l'IA
+ * (tokens, durée) et les actions sensibles. Ne lève jamais : un échec de journalisation n'interrompt rien.
+ */
+export async function journaliser(e: { utilisateurId?: string | null; action: string; entite: string; entiteId: string; details?: Record<string, unknown>; ip?: string }) {
+  try {
+    await connectMongoose();
+    await JournalAudit.create({ ...e, utilisateurId: e.utilisateurId && mongoose.isValidObjectId(e.utilisateurId) ? e.utilisateurId : undefined });
+  } catch (err) {
+    console.error("[journal d'audit]", err);
+  }
+}
 
 export const notifier = (utilisateurId: string, type: TypeNotification, donnees: Record<string, unknown> = {}) =>
   _notifier(utilisateurId, type, donnees);

@@ -28,7 +28,6 @@ vi.mock("@/server/contracts/catalogue", () => ({
 vi.mock("../repositories/mongo", () => ({
   db: {
     commandes: async () => ({ findOne: async ({ clientId }: { clientId: string }) => ({ numero: Object.keys(COMMANDES).find((n) => COMMANDES[n] === clientId) }) }),
-    journalAudit: async () => ({ insertOne: async () => ({}) }),
   },
 }));
 // suiviPourClient filtre sur le client : une commande d'un autre client est introuvable
@@ -36,7 +35,8 @@ vi.mock("../services/commandes", () => ({
   suiviPourClient: async (clientId: string, numero: string) =>
     COMMANDES[numero] === clientId ? { numero, sousCommandes: [{ numero: `${numero}-A`, statut: "EXPEDIEE", fournisseurNom: "Palmeraie", etapes: [{ cle: "expediee", libelle: "Expédiée", etat: "terminee" }] }] } : null,
 }));
-vi.mock("@/lib/ai", () => ({ iaDisponible: () => false, modeleIA: () => "test" }));
+vi.mock("@/lib/ai", () => ({ iaDisponible: () => false, modelesIA: () => [] }));
+vi.mock("@/server/contracts/comptes", () => ({ journaliser: async () => undefined }));
 
 const { creerOutilsAssistant, planLocal } = await import("../services/assistant-ia");
 const outils = creerOutilsAssistant("client-1");
