@@ -1,0 +1,59 @@
+{
+  "id": "/?source=pwa",
+  "name": "DEGLA — Dattes de Tunisie",
+  "short_name": "DEGLA",
+  "description": "La marketplace des dattes tunisiennes de terroir et produits dérivés d'exception.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAF5EC",
+  "theme_color": "#24150F",
+  "categories": ["shopping", "food", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "48x48 72x72 96x96 128x128 256x256",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Boutique & Catalogue",
+      "short_name": "Boutique",
+      "description": "Explorer toutes les variétés et produits de dattes",
+      "url": "/boutique?source=pwa_shortcut",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Espace Fournisseur",
+      "short_name": "Fournisseur",
+      "description": "Gérer vos récoltes, lots et produits",
+      "url": "/fournisseur/produits?source=pwa_shortcut",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Assistant DEGLA",
+      "short_name": "Assistant IA",
+      "description": "Conseils et recommandations personnalisées",
+      "url": "/assistant?source=pwa_shortcut",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

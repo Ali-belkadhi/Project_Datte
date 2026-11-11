@@ -1,14 +1,9 @@
-# SIWAR — Instructions pour les Agents
+<!-- BEGIN:nextjs-agent-rules -->
 
-## Architecture du Projet
-- Ce projet utilise Next.js (App Router) avec structure **sans `src/`**.
-- Les dossiers principaux sont situés directement à la racine :
-  - `app/` : Pages et routing (App Router)
-  - `components/` : Composants UI réutilisables (shadcn/ui, layout, 3D)
-  - `lib/` : Utilitaires et fonctions d'API / mock
-  - `hooks/` : Hooks React personnalisés
-  - `store/` : Stores Zustand (panier, UI, wishlist)
-  - `types/` : Définitions TypeScript
-  - `data/` : Données mock catalogue
-  - `styles/` : Fichiers CSS globaux
-  - `public/` : Assets statiques et images
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
