@@ -5,11 +5,13 @@ Ce module relie `DateTraceability.sol` au catalogue MongoDB sans stocker de clé
 ## Responsabilités
 
 - Solidity conserve les lots et leur historique append-only.
+- Chaque lot est aussi représenté par un NFT ERC-721 `DLOT`, frappé automatiquement au producteur lors de `createLot`.
 - MetaMask signe `createLot` et `addTraceabilityStep`.
 - Next.js vérifie les transactions confirmées avec un RPC serveur.
 - MongoDB conserve uniquement le registre des lots créés par les fournisseurs et la liaison `productId` / `lotId`.
 - La page `/tracabilite/[productId]` effectue une lecture publique sans wallet.
-- La certification Baha n'est pas implémentée dans ce module.
+- La page publique affiche le `tokenId` et le propriétaire ERC-721 actuel du lot.
+- La certification Baha utilise le contrat séparé `ProductCertification`, relié au même registre de lots.
 
 ## Variables d'environnement
 
@@ -20,6 +22,7 @@ APP_URL=http://localhost:3000
 BLOCKCHAIN_RPC_URL=http://127.0.0.1:7545
 NEXT_PUBLIC_BLOCKCHAIN_CHAIN_ID=1337
 NEXT_PUBLIC_DATE_TRACEABILITY_ADDRESS=0x...
+NEXT_PUBLIC_PRODUCT_CERTIFICATION_ADDRESS=0x...
 ```
 
 Pour une application hébergée, `APP_URL` et `BLOCKCHAIN_RPC_URL` doivent être accessibles en ligne. `127.0.0.1` ne fonctionne que pour une démonstration locale.
@@ -77,10 +80,11 @@ npm run dev
 
 ## Mise en ligne
 
-Le code est indépendant du réseau, mais les trois valeurs doivent correspondre au même déploiement :
+Le code est indépendant du réseau, mais les quatre valeurs doivent correspondre au même déploiement :
 
 - RPC serveur ;
 - chain ID sélectionné dans MetaMask ;
-- adresse de `DateTraceability`.
+- adresse de `DateTraceability` ;
+- adresse de `ProductCertification`.
 
 Une modification de réseau nécessite un nouveau déploiement manuel du contrat et une nouvelle configuration. Les anciennes liaisons conservent leur chain ID et leur adresse de contrat afin d'éviter de présenter des données provenant du mauvais registre.

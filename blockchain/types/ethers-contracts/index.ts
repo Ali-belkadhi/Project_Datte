@@ -7,6 +7,6 @@ export type { DateTraceability } from './DateTraceability.js';
 export type { ProductCertification } from './ProductCertification.js';
 export * as factories from './factories/index.js';
 export { DateTraceability__factory } from './factories/DateTraceability__factory.js';
-export { ProductCertification__factory } from './factories/ProductCertification__factory.js';
 export type { IDateTraceability } from './interfaces/IDateTraceability.js';
 export { IDateTraceability__factory } from './factories/interfaces/IDateTraceability__factory.js';
+export { ProductCertification__factory } from './factories/ProductCertification__factory.js';

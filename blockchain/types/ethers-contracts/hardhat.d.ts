@@ -11,20 +11,20 @@ import * as Contracts from "./index.js";
 declare module "@nomicfoundation/hardhat-ethers/types" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
   getContractFactory(name: 'DateTraceability', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.DateTraceability__factory>
-getContractFactory(name: 'ProductCertification', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ProductCertification__factory>
 getContractFactory(name: 'IDateTraceability', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IDateTraceability__factory>
+getContractFactory(name: 'ProductCertification', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ProductCertification__factory>
 
   getContractAt(name: 'DateTraceability', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.DateTraceability>
-getContractAt(name: 'ProductCertification', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ProductCertification>
 getContractAt(name: 'IDateTraceability', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IDateTraceability>
+getContractAt(name: 'ProductCertification', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ProductCertification>
 
   deployContract(name: 'DateTraceability', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.DateTraceability>
-deployContract(name: 'ProductCertification', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ProductCertification>
 deployContract(name: 'IDateTraceability', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IDateTraceability>
+deployContract(name: 'ProductCertification', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ProductCertification>
 
   deployContract(name: 'DateTraceability', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.DateTraceability>
-deployContract(name: 'ProductCertification', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ProductCertification>
 deployContract(name: 'IDateTraceability', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IDateTraceability>
+deployContract(name: 'ProductCertification', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ProductCertification>
 
     // default types
     getContractFactory(

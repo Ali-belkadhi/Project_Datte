@@ -15,6 +15,9 @@ export interface TraceabilityLot {
   variety: string;
   harvestDate: number;
   exists: boolean;
+  tokenId: string;
+  tokenOwner: string;
+  tokenUri: string;
 }
 
 export interface TraceabilityStep {

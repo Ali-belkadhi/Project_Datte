@@ -2,9 +2,10 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "./interfaces/IDateTraceability.sol";
 
-contract DateTraceability is AccessControl, IDateTraceability {
+contract DateTraceability is AccessControl, ERC721, IDateTraceability {
 
     // --- A3 : Rôles de sécurité ---
     bytes32 public constant LOT_CREATOR_ROLE = keccak256("LOT_CREATOR_ROLE");
@@ -40,6 +41,8 @@ contract DateTraceability is AccessControl, IDateTraceability {
     // Stockage privé des lots et de leur historique immuable (ajout uniquement)
     mapping(string => Lot) private lots;
     mapping(string => TraceabilityStep[]) private traceabilityHistory;
+    mapping(string => uint256) private lotTokenIds;
+    mapping(uint256 => string) private tokenLotIds;
 
     // --- A3 : Événements ---
     event LotCreated(
@@ -48,6 +51,12 @@ contract DateTraceability is AccessControl, IDateTraceability {
         string region,
         string variety,
         uint256 harvestDate
+    );
+
+    event LotTokenMinted(
+        string indexed lotId,
+        uint256 indexed tokenId,
+        address indexed owner
     );
 
     event TraceabilityStepAdded(
@@ -60,7 +69,7 @@ contract DateTraceability is AccessControl, IDateTraceability {
     );
 
     // --- Constructeur ---
-    constructor() {
+    constructor() ERC721("DEGLA Traceability Lot", "DLOT") {
         // L'adresse qui déploie le contrat reçoit tous les rôles par défaut
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(LOT_CREATOR_ROLE, msg.sender);
@@ -101,7 +110,29 @@ contract DateTraceability is AccessControl, IDateTraceability {
             exists: true
         });
 
+        uint256 tokenId = uint256(keccak256(bytes(lotId)));
+        lotTokenIds[lotId] = tokenId;
+        tokenLotIds[tokenId] = lotId;
+        _safeMint(producer, tokenId);
+
         emit LotCreated(lotId, producer, region, variety, harvestDate);
+        emit LotTokenMinted(lotId, tokenId, producer);
+    }
+
+    // --- NFT ERC-721 associé au lot ---
+    function tokenIdForLot(string calldata lotId) external view returns (uint256) {
+        require(lots[lotId].exists, "Lot not found");
+        return lotTokenIds[lotId];
+    }
+
+    function lotIdForToken(uint256 tokenId) external view returns (string memory) {
+        _requireOwned(tokenId);
+        return tokenLotIds[tokenId];
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        _requireOwned(tokenId);
+        return string.concat("degla://lot/", tokenLotIds[tokenId]);
     }
 
     // --- A1 : Consultation d'un lot ---
@@ -156,5 +187,14 @@ contract DateTraceability is AccessControl, IDateTraceability {
     {
         require(lots[lotId].exists, "Lot not found");
         return traceabilityHistory[lotId];
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControl, ERC721)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }

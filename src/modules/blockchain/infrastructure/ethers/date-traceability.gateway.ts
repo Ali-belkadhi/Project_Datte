@@ -22,13 +22,16 @@ type RawStep = {
   documentHash: string;
 };
 
-const toLot = (raw: RawLot): TraceabilityLot => ({
+const toLot = (raw: RawLot, tokenId: bigint, tokenOwner: string, tokenUri: string): TraceabilityLot => ({
   lotId: raw.lotId,
   producer: getAddress(raw.producer),
   region: raw.region,
   variety: raw.variety,
   harvestDate: Number(raw.harvestDate),
   exists: raw.exists,
+  tokenId: tokenId.toString(),
+  tokenOwner: getAddress(tokenOwner),
+  tokenUri,
 });
 
 const toStep = (raw: RawStep): TraceabilityStep => ({
@@ -53,7 +56,15 @@ export const dateTraceabilityGateway: TraceabilityReader = {
   },
   async getLot(lotId) {
     const { contract } = connection();
-    return toLot((await contract.getLot(lotId)) as RawLot);
+    const [raw, tokenId] = await Promise.all([
+      contract.getLot(lotId) as Promise<RawLot>,
+      contract.tokenIdForLot(lotId) as Promise<bigint>,
+    ]);
+    const [tokenOwner, tokenUri] = await Promise.all([
+      contract.ownerOf(tokenId) as Promise<string>,
+      contract.tokenURI(tokenId) as Promise<string>,
+    ]);
+    return toLot(raw, tokenId, tokenOwner, tokenUri);
   },
   async getHistory(lotId) {
     const { contract } = connection();

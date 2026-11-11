@@ -18,46 +18,110 @@ export declare namespace DateTraceability {
     }
 
   export interface DateTraceabilityInterface extends Interface {
-    getFunction(nameOrSignature: "DEFAULT_ADMIN_ROLE" | "LOT_CREATOR_ROLE" | "STEP_ADDER_ROLE" | "addTraceabilityStep" | "createLot" | "getLot" | "getRoleAdmin" | "getTraceabilityHistory" | "grantRole" | "hasRole" | "lotExists" | "renounceRole" | "revokeRole" | "supportsInterface"): FunctionFragment;
+    getFunction(nameOrSignature: "DEFAULT_ADMIN_ROLE" | "LOT_CREATOR_ROLE" | "STEP_ADDER_ROLE" | "addTraceabilityStep" | "approve" | "balanceOf" | "createLot" | "getApproved" | "getLot" | "getRoleAdmin" | "getTraceabilityHistory" | "grantRole" | "hasRole" | "isApprovedForAll" | "lotExists" | "lotIdForToken" | "name" | "ownerOf" | "renounceRole" | "revokeRole" | "safeTransferFrom(address,address,uint256)" | "safeTransferFrom(address,address,uint256,bytes)" | "setApprovalForAll" | "supportsInterface" | "symbol" | "tokenIdForLot" | "tokenURI" | "transferFrom"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "LotCreated" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked" | "TraceabilityStepAdded"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "Approval" | "ApprovalForAll" | "LotCreated" | "LotTokenMinted" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked" | "TraceabilityStepAdded" | "Transfer"): EventFragment;
 
     encodeFunctionData(functionFragment: 'DEFAULT_ADMIN_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'LOT_CREATOR_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'STEP_ADDER_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addTraceabilityStep', values: [string, BigNumberish, BigNumberish, string, AddressLike, string]): string;
+encodeFunctionData(functionFragment: 'approve', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'createLot', values: [string, AddressLike, string, string, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getApproved', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getLot', values: [string]): string;
 encodeFunctionData(functionFragment: 'getRoleAdmin', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getTraceabilityHistory', values: [string]): string;
 encodeFunctionData(functionFragment: 'grantRole', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'hasRole', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'lotExists', values: [string]): string;
+encodeFunctionData(functionFragment: 'lotIdForToken', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'name', values?: undefined): string;
+encodeFunctionData(functionFragment: 'ownerOf', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'renounceRole', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'revokeRole', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'safeTransferFrom(address,address,uint256)', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'safeTransferFrom(address,address,uint256,bytes)', values: [AddressLike, AddressLike, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'setApprovalForAll', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'symbol', values?: undefined): string;
+encodeFunctionData(functionFragment: 'tokenIdForLot', values: [string]): string;
+encodeFunctionData(functionFragment: 'tokenURI', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'transferFrom', values: [AddressLike, AddressLike, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'DEFAULT_ADMIN_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'LOT_CREATOR_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'STEP_ADDER_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addTraceabilityStep', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'approve', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createLot', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getApproved', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getLot', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRoleAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getTraceabilityHistory', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'grantRole', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hasRole', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lotExists', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'lotIdForToken', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'name', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'ownerOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceRole', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'revokeRole', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'safeTransferFrom(address,address,uint256)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'safeTransferFrom(address,address,uint256,bytes)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setApprovalForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'symbol', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'tokenIdForLot', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'tokenURI', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
   }
 
   
+    export namespace ApprovalEvent {
+      export type InputTuple = [owner: AddressLike, approved: AddressLike, tokenId: BigNumberish];
+      export type OutputTuple = [owner: string, approved: string, tokenId: bigint];
+      export interface OutputObject {owner: string, approved: string, tokenId: bigint }
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ApprovalForAllEvent {
+      export type InputTuple = [owner: AddressLike, operator: AddressLike, approved: boolean];
+      export type OutputTuple = [owner: string, operator: string, approved: boolean];
+      export interface OutputObject {owner: string, operator: string, approved: boolean }
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace LotCreatedEvent {
       export type InputTuple = [lotId: string, producer: AddressLike, region: string, variety: string, harvestDate: BigNumberish];
       export type OutputTuple = [lotId: string, producer: string, region: string, variety: string, harvestDate: bigint];
       export interface OutputObject {lotId: string, producer: string, region: string, variety: string, harvestDate: bigint }
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace LotTokenMintedEvent {
+      export type InputTuple = [lotId: string, tokenId: BigNumberish, owner: AddressLike];
+      export type OutputTuple = [lotId: string, tokenId: bigint, owner: string];
+      export interface OutputObject {lotId: string, tokenId: bigint, owner: string }
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -106,6 +170,18 @@ decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Re
       export type InputTuple = [lotId: string, stepType: BigNumberish, date: BigNumberish, location: string, responsibleActor: AddressLike, documentHash: string];
       export type OutputTuple = [lotId: string, stepType: bigint, date: bigint, location: string, responsibleActor: string, documentHash: string];
       export interface OutputObject {lotId: string, stepType: bigint, date: bigint, location: string, responsibleActor: string, documentHash: string }
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace TransferEvent {
+      export type InputTuple = [from: AddressLike, to: AddressLike, tokenId: BigNumberish];
+      export type OutputTuple = [from: string, to: string, tokenId: bigint];
+      export interface OutputObject {from: string, to: string, tokenId: bigint }
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -180,10 +256,34 @@ decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Re
     
 
     
+    approve: TypedContractMethod<
+      [to: AddressLike, tokenId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    balanceOf: TypedContractMethod<
+      [owner: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     createLot: TypedContractMethod<
       [lotId: string, producer: AddressLike, region: string, variety: string, harvestDate: BigNumberish, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    getApproved: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [string],
+      'view'
     >
     
 
@@ -228,9 +328,41 @@ decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Re
     
 
     
+    isApprovedForAll: TypedContractMethod<
+      [owner: AddressLike, operator: AddressLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     lotExists: TypedContractMethod<
       [lotId: string, ],
       [boolean],
+      'view'
+    >
+    
+
+    
+    lotIdForToken: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [string],
+      'view'
+    >
+    
+
+    
+    name: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    ownerOf: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [string],
       'view'
     >
     
@@ -252,10 +384,66 @@ decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Re
     
 
     
+    "safeTransferFrom(address,address,uint256)": TypedContractMethod<
+      [from: AddressLike, to: AddressLike, tokenId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "safeTransferFrom(address,address,uint256,bytes)": TypedContractMethod<
+      [from: AddressLike, to: AddressLike, tokenId: BigNumberish, data: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setApprovalForAll: TypedContractMethod<
+      [operator: AddressLike, approved: boolean, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     supportsInterface: TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
       'view'
+    >
+    
+
+    
+    symbol: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    tokenIdForLot: TypedContractMethod<
+      [lotId: string, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    tokenURI: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [string],
+      'view'
+    >
+    
+
+    
+    transferFrom: TypedContractMethod<
+      [from: AddressLike, to: AddressLike, tokenId: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -282,10 +470,25 @@ getFunction(nameOrSignature: 'addTraceabilityStep'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'approve'): TypedContractMethod<
+      [to: AddressLike, tokenId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'balanceOf'): TypedContractMethod<
+      [owner: AddressLike, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'createLot'): TypedContractMethod<
       [lotId: string, producer: AddressLike, region: string, variety: string, harvestDate: BigNumberish, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'getApproved'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [string],
+      'view'
     >;
 getFunction(nameOrSignature: 'getLot'): TypedContractMethod<
       [lotId: string, ],
@@ -312,9 +515,29 @@ getFunction(nameOrSignature: 'hasRole'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'isApprovedForAll'): TypedContractMethod<
+      [owner: AddressLike, operator: AddressLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'lotExists'): TypedContractMethod<
       [lotId: string, ],
       [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'lotIdForToken'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'name'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'ownerOf'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'renounceRole'): TypedContractMethod<
@@ -327,22 +550,73 @@ getFunction(nameOrSignature: 'revokeRole'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'safeTransferFrom(address,address,uint256)'): TypedContractMethod<
+      [from: AddressLike, to: AddressLike, tokenId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'safeTransferFrom(address,address,uint256,bytes)'): TypedContractMethod<
+      [from: AddressLike, to: AddressLike, tokenId: BigNumberish, data: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setApprovalForAll'): TypedContractMethod<
+      [operator: AddressLike, approved: boolean, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'supportsInterface'): TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'symbol'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'tokenIdForLot'): TypedContractMethod<
+      [lotId: string, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'tokenURI'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'transferFrom'): TypedContractMethod<
+      [from: AddressLike, to: AddressLike, tokenId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 
-    getEvent(key: 'LotCreated'): TypedContractEvent<LotCreatedEvent.InputTuple, LotCreatedEvent.OutputTuple, LotCreatedEvent.OutputObject>;
+    getEvent(key: 'Approval'): TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
+getEvent(key: 'ApprovalForAll'): TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
+getEvent(key: 'LotCreated'): TypedContractEvent<LotCreatedEvent.InputTuple, LotCreatedEvent.OutputTuple, LotCreatedEvent.OutputObject>;
+getEvent(key: 'LotTokenMinted'): TypedContractEvent<LotTokenMintedEvent.InputTuple, LotTokenMintedEvent.OutputTuple, LotTokenMintedEvent.OutputObject>;
 getEvent(key: 'RoleAdminChanged'): TypedContractEvent<RoleAdminChangedEvent.InputTuple, RoleAdminChangedEvent.OutputTuple, RoleAdminChangedEvent.OutputObject>;
 getEvent(key: 'RoleGranted'): TypedContractEvent<RoleGrantedEvent.InputTuple, RoleGrantedEvent.OutputTuple, RoleGrantedEvent.OutputObject>;
 getEvent(key: 'RoleRevoked'): TypedContractEvent<RoleRevokedEvent.InputTuple, RoleRevokedEvent.OutputTuple, RoleRevokedEvent.OutputObject>;
 getEvent(key: 'TraceabilityStepAdded'): TypedContractEvent<TraceabilityStepAddedEvent.InputTuple, TraceabilityStepAddedEvent.OutputTuple, TraceabilityStepAddedEvent.OutputObject>;
+getEvent(key: 'Transfer'): TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
 
     filters: {
       
+      'Approval(address,address,uint256)': TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
+      Approval: TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
+    
+
+      'ApprovalForAll(address,address,bool)': TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
+      ApprovalForAll: TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
+    
+
       'LotCreated(string,address,string,string,uint256)': TypedContractEvent<LotCreatedEvent.InputTuple, LotCreatedEvent.OutputTuple, LotCreatedEvent.OutputObject>;
       LotCreated: TypedContractEvent<LotCreatedEvent.InputTuple, LotCreatedEvent.OutputTuple, LotCreatedEvent.OutputObject>;
+    
+
+      'LotTokenMinted(string,uint256,address)': TypedContractEvent<LotTokenMintedEvent.InputTuple, LotTokenMintedEvent.OutputTuple, LotTokenMintedEvent.OutputObject>;
+      LotTokenMinted: TypedContractEvent<LotTokenMintedEvent.InputTuple, LotTokenMintedEvent.OutputTuple, LotTokenMintedEvent.OutputObject>;
     
 
       'RoleAdminChanged(bytes32,bytes32,bytes32)': TypedContractEvent<RoleAdminChangedEvent.InputTuple, RoleAdminChangedEvent.OutputTuple, RoleAdminChangedEvent.OutputObject>;
@@ -359,6 +633,10 @@ getEvent(key: 'TraceabilityStepAdded'): TypedContractEvent<TraceabilityStepAdded
 
       'TraceabilityStepAdded(string,uint8,uint256,string,address,string)': TypedContractEvent<TraceabilityStepAddedEvent.InputTuple, TraceabilityStepAddedEvent.OutputTuple, TraceabilityStepAddedEvent.OutputObject>;
       TraceabilityStepAdded: TypedContractEvent<TraceabilityStepAddedEvent.InputTuple, TraceabilityStepAddedEvent.OutputTuple, TraceabilityStepAddedEvent.OutputObject>;
+    
+
+      'Transfer(address,address,uint256)': TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
+      Transfer: TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
     
     };
   }

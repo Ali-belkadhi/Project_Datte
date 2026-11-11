@@ -46,20 +46,60 @@ export async function linkProductToLot(input: unknown) {
 
 const CERT_ABI = [
   "function grantRole(bytes32 role, address account)",
+  "function hasRole(bytes32 role, address account) view returns (bool)",
+  "function DEFAULT_ADMIN_ROLE() view returns (bytes32)",
   "function CERTIFIER_ROLE() view returns (bytes32)",
+  "function getCertificate(string productId) view returns (tuple(bytes32 certificateId, string productId, string lotId, address certifier, string certifierOrg, string certType, string documentHash, uint256 issuedAt, uint256 expiresAt, bool revoked, string revocationReason, bool exists))",
   "function issueCertificate(string productId, string lotId, string certifierOrg, string certType, string documentHash, uint256 expiresAt)",
 ];
 
+async function getServerBlockchainSigner(provider: ethers.JsonRpcProvider) {
+  if (process.env.DEV_CERTIFIER_PRIVATE_KEY) {
+    return new ethers.Wallet(process.env.DEV_CERTIFIER_PRIVATE_KEY, provider);
+  }
+  if (env.NODE_ENV === "development") return provider.getSigner(0);
+  throw new Error("Aucun signataire Blockchain n'est configuré sur le serveur.");
+}
+
 export async function issueCertificateAction(input: { productId: string; lotId: string; certifierOrg: string; certType: string }) {
-  const pk = process.env.DEV_CERTIFIER_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-  const provider = new ethers.JsonRpcProvider(env.BLOCKCHAIN_RPC_URL!, Number(env.BLOCKCHAIN_CHAIN_ID));
-  const wallet = new ethers.Wallet(pk, provider);
-  const certAddress = env.PRODUCT_CERTIFICATION_ADDRESS!;
-  const c = new ethers.Contract(certAddress, CERT_ABI, wallet);
+  const productId = input.productId.trim();
+  const lotId = input.lotId.trim();
+  const certifierOrg = input.certifierOrg.trim();
+  const certType = input.certType.trim();
+  if (!productId || !lotId || !certifierOrg || !certType) throw new Error("Tous les champs du certificat sont obligatoires.");
+
+  const rpcUrl = env.BLOCKCHAIN_RPC_URL;
+  const chainId = Number(env.BLOCKCHAIN_CHAIN_ID);
+  const traceAddress = env.DATE_TRACEABILITY_ADDRESS;
+  const certAddress = env.PRODUCT_CERTIFICATION_ADDRESS;
+  if (!rpcUrl || !Number.isSafeInteger(chainId) || !ethers.isAddress(traceAddress) || !ethers.isAddress(certAddress)) {
+    throw new Error("La configuration des contrats Blockchain est incomplète dans .env.local.");
+  }
+
+  const provider = new ethers.JsonRpcProvider(rpcUrl, chainId, { staticNetwork: true });
+  const signer = await getServerBlockchainSigner(provider);
+
+  const trace = new ethers.Contract(traceAddress, ["function lotExists(string lotId) view returns (bool)"], provider);
+  if (!(await trace.lotExists(lotId))) throw new Error(`Le lot ${lotId} n'existe pas sur le contrat de traçabilité.`);
+
+  const c = new ethers.Contract(certAddress, CERT_ABI, signer);
+  try {
+    await c.getCertificate(productId);
+    throw new Error("Un certificat existe déjà pour ce produit.");
+  } catch (error) {
+    if (error instanceof Error && error.message === "Un certificat existe déjà pour ce produit.") throw error;
+  }
+
+  const signerAddress = await signer.getAddress();
   const role = await c.CERTIFIER_ROLE();
-  await (await c.grantRole(role, wallet.address)).wait();
-  await (await c.issueCertificate(input.productId, input.lotId, input.certifierOrg, input.certType, "hashdoc", Math.floor(Date.now() / 1000) + 1000000)).wait();
-  revalidatePath(`/tracabilite/${input.productId}`);
+  if (!(await c.hasRole(role, signerAddress))) {
+    const adminRole = await c.DEFAULT_ADMIN_ROLE();
+    if (!(await c.hasRole(adminRole, signerAddress))) throw new Error("Le compte serveur n'a pas le rôle de certificateur sur ce contrat.");
+    await (await c.grantRole(role, signerAddress)).wait();
+  }
+
+  await (await c.issueCertificate(productId, lotId, certifierOrg, certType, "hashdoc", Math.floor(Date.now() / 1000) + 1000000)).wait();
+  revalidatePath(`/tracabilite/${productId}`);
   return { ok: true };
 }
 
@@ -69,22 +109,21 @@ const LOT_ABI = [
 ];
 
 export async function autoSetupProduct(productId: string) {
-  const pk = process.env.DEV_CERTIFIER_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
   const provider = new ethers.JsonRpcProvider(env.BLOCKCHAIN_RPC_URL!, Number(env.BLOCKCHAIN_CHAIN_ID));
-  const wallet = new ethers.Wallet(pk, provider);
+  const signer = await getServerBlockchainSigner(provider);
+  const signerAddress = await signer.getAddress();
   const traceAddress = env.DATE_TRACEABILITY_ADDRESS!;
   const certAddress = env.PRODUCT_CERTIFICATION_ADDRESS!;
   const lotId = "LOT-" + productId.slice(-6);
 
-  const trace = new ethers.Contract(traceAddress, LOT_ABI, wallet);
-  const nonce1 = await provider.getTransactionCount(wallet.address, "pending");
-  const lotTx = await trace.createLot(lotId, wallet.address, "Tozeur", "Deglet Nour", 1700000000, { nonce: nonce1 });
+  const trace = new ethers.Contract(traceAddress, LOT_ABI, signer);
+  const lotTx = await trace.createLot(lotId, signerAddress, "Tozeur", "Deglet Nour", 1700000000);
   await lotTx.wait();
 
   await traceabilityLotRecordRepository.saveConfirmed({
     lotId,
     supplierId: "dev",
-    producerWallet: wallet.address,
+    producerWallet: signerAddress,
     region: "Tozeur",
     variety: "Deglet Nour",
     harvestDate: new Date(1700000000 * 1000).toISOString(),
@@ -101,12 +140,14 @@ export async function autoSetupProduct(productId: string) {
     traceabilityContract: traceAddress,
   });
 
-  const cert = new ethers.Contract(certAddress, CERT_ABI, wallet);
+  const cert = new ethers.Contract(certAddress, CERT_ABI, signer);
   const role = await cert.CERTIFIER_ROLE();
-  const nonce2 = await provider.getTransactionCount(wallet.address, "pending");
-  await (await cert.grantRole(role, wallet.address, { nonce: nonce2 })).wait();
-  const nonce3 = await provider.getTransactionCount(wallet.address, "pending");
-  await (await cert.issueCertificate(productId, lotId, "CertOrg TN", "Bio", "hashdoc", Math.floor(Date.now() / 1000) + 1000000, { nonce: nonce3 })).wait();
+  if (!(await cert.hasRole(role, signerAddress))) {
+    const adminRole = await cert.DEFAULT_ADMIN_ROLE();
+    if (!(await cert.hasRole(adminRole, signerAddress))) throw new Error("Le compte serveur n'a pas le rôle de certificateur sur ce contrat.");
+    await (await cert.grantRole(role, signerAddress)).wait();
+  }
+  await (await cert.issueCertificate(productId, lotId, "CertOrg TN", "Bio", "hashdoc", Math.floor(Date.now() / 1000) + 1000000)).wait();
 
   revalidatePath(`/tracabilite/${productId}`);
   return { ok: true, lotId };

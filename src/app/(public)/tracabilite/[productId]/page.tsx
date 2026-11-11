@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
-import { Blocks, CalendarDays, MapPin, ShieldCheck, Sprout, type LucideIcon } from "lucide-react";
+import { Blocks, CalendarDays, Gem, MapPin, ShieldCheck, Sprout, WalletCards, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/layout/section";
 import { Breadcrumbs, PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ export const metadata = pageMetadata("Verification de la tracabilite");
 export const dynamic = "force-dynamic";
 
 const shortAddress = (address: string) => `${address.slice(0, 8)}...${address.slice(-6)}`;
+const shortTokenId = (tokenId: string) => `${tokenId.slice(0, 8)}...${tokenId.slice(-6)}`;
 
 export default async function PublicTraceabilityPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
@@ -67,6 +68,8 @@ export default async function PublicTraceabilityPage({ params }: { params: Promi
                     <Fact icon={MapPin} label="Region d'origine" value={traceability.lot.region} />
                     <Fact icon={CalendarDays} label="Recolte" value={new Date(traceability.lot.harvestDate * 1000).toLocaleDateString("fr-FR")} />
                     <Fact icon={ShieldCheck} label="Producteur Blockchain" value={shortAddress(traceability.lot.producer)} title={traceability.lot.producer} />
+                    <Fact icon={Gem} label="Token du lot" value={`DLOT #${shortTokenId(traceability.lot.tokenId)}`} title={traceability.lot.tokenId} />
+                    <Fact icon={WalletCards} label="Proprietaire du NFT" value={shortAddress(traceability.lot.tokenOwner)} title={traceability.lot.tokenOwner} />
                   </dl>
                   <TraceabilityTimeline history={traceability.history} />
                 </>
@@ -76,7 +79,7 @@ export default async function PublicTraceabilityPage({ params }: { params: Promi
 
           <Card>
             <CardHeader>
-              <CardTitle>Certification - Baha</CardTitle>
+              <CardTitle>Certification</CardTitle>
               <CardDescription>Section independante de la tracabilite.</CardDescription>
             </CardHeader>
             <CardContent>

@@ -21,13 +21,14 @@ import {
   type TraceabilityStep,
   type TraceabilityStepType,
 } from "../domain/traceability";
-import { addStepWithWallet, createLotWithWallet, readLotWithWallet } from "../infrastructure/ethers/wallet";
+import { addStepWithWallet, createLotWithWallet, readLotWithWallet, transferLotTokenWithWallet } from "../infrastructure/ethers/wallet";
 import { linkProductToLot, saveConfirmedLot } from "./actions";
 import { TraceabilityTimeline } from "./traceability-timeline";
 
 type Props = {
   supplierId: string;
   shopType: TypeFournisseur;
+  shopVerified: boolean;
   config: PublicBlockchainConfig | null;
   lots: TraceabilityLotRecord[];
   links: ProductBlockchainLink[];
@@ -39,13 +40,14 @@ const nowLocal = () => {
   return date.toISOString().slice(0, 16);
 };
 
-export function TraceabilityWorkspace({ supplierId, shopType, config, lots, links, products }: Props) {
+export function TraceabilityWorkspace({ supplierId, shopType, shopVerified, config, lots, links, products }: Props) {
   const router = useRouter();
-  const canCreateLot = shopType === "PRODUCTEUR" || shopType === "COOPERATIVE";
+  const supportsLotCreation = shopType === "PRODUCTEUR" || shopType === "COOPERATIVE";
   const canAddStep = shopType === "TRANSFORMATEUR";
   const [busy, setBusy] = useState(false);
   const [lookupId, setLookupId] = useState("");
   const [lookup, setLookup] = useState<{ lot: TraceabilityLot; history: TraceabilityStep[] } | null>(null);
+  const [tokenRecipient, setTokenRecipient] = useState("");
   const [lotForm, setLotForm] = useState({ lotId: "", region: "", variety: "", harvestDate: "" });
   const [stepForm, setStepForm] = useState({ stepType: "1", date: nowLocal(), location: "", documentHash: "" });
   const [linkForm, setLinkForm] = useState({ productId: "", lotId: "" });
@@ -63,6 +65,7 @@ export function TraceabilityWorkspace({ supplierId, shopType, config, lots, link
       const harvestDate = Math.floor(new Date(lotForm.harvestDate).getTime() / 1000);
       if (!lotForm.lotId || !lotForm.region || !lotForm.variety || !Number.isFinite(harvestDate)) throw new Error("Complétez toutes les informations du lot.");
       const result = await createLotWithWallet(requireConfig(), { ...lotForm, harvestDate }, supplierId);
+      if (result.recovered) toast.info("Lot déjà présent sur la Blockchain : récupération de la transaction existante.");
       const saved = await saveLot.run({ lotId: lotForm.lotId, transactionHash: result.transactionHash, walletSignature: result.walletSignature });
       if (saved.ok) setLotForm({ lotId: "", region: "", variety: "", harvestDate: "" });
     } catch (error) {
@@ -108,6 +111,21 @@ export function TraceabilityWorkspace({ supplierId, shopType, config, lots, link
     }
   };
 
+  const transferToken = async () => {
+    if (!lookup) return;
+    setBusy(true);
+    try {
+      await transferLotTokenWithWallet(requireConfig(), lookup.lot.tokenId, tokenRecipient.trim());
+      toast.success("NFT DLOT transféré avec succès.");
+      setTokenRecipient("");
+      await searchLot(lookup.lot.lotId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Transfert du NFT impossible.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {!config && (
@@ -115,9 +133,14 @@ export function TraceabilityWorkspace({ supplierId, shopType, config, lots, link
           La traçabilité est prête mais le réseau n&apos;est pas configuré. Renseignez les variables Blockchain dans <code>.env.local</code> avant de signer.
         </div>
       )}
+      {supportsLotCreation && !shopVerified && (
+        <div role="alert" className="rounded-2xl border border-warning/40 bg-warning/10 p-4 text-sm">
+          Votre dossier fournisseur doit être vérifié avant de créer un lot sur la Blockchain. <Link href="/vendeur/onboarding" className="font-semibold underline">Consulter le dossier</Link>
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-2">
-        {canCreateLot && (
+        {supportsLotCreation && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Plus className="size-4" aria-hidden /> Créer un lot agricole</CardTitle>
@@ -128,7 +151,7 @@ export function TraceabilityWorkspace({ supplierId, shopType, config, lots, link
               <Field label="Date de récolte" id="harvest-date"><Input id="harvest-date" type="date" value={lotForm.harvestDate} onChange={(e) => setLotForm((x) => ({ ...x, harvestDate: e.target.value }))} /></Field>
               <Field label="Région" id="lot-region"><Input id="lot-region" value={lotForm.region} onChange={(e) => setLotForm((x) => ({ ...x, region: e.target.value }))} placeholder="Tozeur" /></Field>
               <Field label="Variété" id="lot-variety"><Input id="lot-variety" value={lotForm.variety} onChange={(e) => setLotForm((x) => ({ ...x, variety: e.target.value }))} placeholder="Deglet Nour" /></Field>
-              <Button type="button" variant="brand" className="sm:col-span-2" disabled={busy || saveLot.pending || !config} onClick={createLot}>
+              <Button type="button" variant="brand" className="sm:col-span-2" disabled={busy || saveLot.pending || !config || !shopVerified} onClick={createLot}>
                 <Blocks aria-hidden /> Signer et créer le lot
               </Button>
             </CardContent>
@@ -150,6 +173,19 @@ export function TraceabilityWorkspace({ supplierId, shopType, config, lots, link
                 <p className="font-semibold">{lookup.lot.lotId} · {lookup.lot.variety}</p>
                 <p className="text-muted-foreground">{lookup.lot.region} · récolte du {new Date(lookup.lot.harvestDate * 1000).toLocaleDateString("fr-FR")}</p>
                 <p className="mt-1 break-all font-mono text-xs">Producteur : {lookup.lot.producer}</p>
+                <p className="mt-1 break-all font-mono text-xs">NFT DLOT : #{lookup.lot.tokenId}</p>
+                <p className="mt-1 break-all font-mono text-xs">Propriétaire actuel : {lookup.lot.tokenOwner}</p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    value={tokenRecipient}
+                    onChange={(event) => setTokenRecipient(event.target.value)}
+                    placeholder="Adresse 0x du nouveau propriétaire"
+                    aria-label="Adresse du nouveau propriétaire du NFT"
+                  />
+                  <Button type="button" variant="outline" disabled={busy || !tokenRecipient.trim()} onClick={transferToken}>
+                    Transférer le NFT
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

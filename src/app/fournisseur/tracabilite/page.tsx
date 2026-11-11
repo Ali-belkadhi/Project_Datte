@@ -27,12 +27,13 @@ export default async function FournisseurTraceabilityPage() {
       <TraceabilityWorkspace
         supplierId={user.fournisseurId}
         shopType={shop.type}
+        shopVerified={shop.verifie}
         config={getOptionalPublicBlockchainConfig()}
         lots={data.lots}
         links={data.links}
         products={products}
       />
-      <AutoSetupPanel products={products.map((p: any) => ({ id: p.id, nom: p.nom }))} />
+      <AutoSetupPanel products={products.map((product) => ({ id: product.id, nom: product.nom }))} />
     </div>
   );
 }
