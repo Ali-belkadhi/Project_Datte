@@ -1,0 +1,44 @@
+appId: tn.degla.desktop
+productName: DEGLA
+asar: true
+beforeBuild: ./desktop/before-build.cjs
+nodeGypRebuild: false
+directories:
+  app: desktop
+  output: release
+files:
+  - main.cjs
+  - runtime.cjs
+  - icon.ico
+  - package.json
+  - "!**/node_modules/**"
+extraResources:
+  - from: desktop-resources/server
+    to: server
+    filter:
+      - "**/*"
+      - "!**/.env*"
+      - "!**/*.pdb"
+  - from: desktop-resources/runtime
+    to: runtime
+  - from: desktop-resources/mongodb
+    to: mongodb
+  - from: desktop-resources/seed
+    to: seed
+win:
+  icon: desktop/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: DEGLA
+  runAfterFinish: false
+  deleteAppDataOnUninstall: false
+artifactName: "DEGLA-${version}-Setup.${ext}"

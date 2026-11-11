@@ -1,0 +1,12 @@
+{
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Submit",
+    "forgot": "Forgot password?",
+    "verify": "Verify",
+    "resend": "Resend code"
+  }
+}
