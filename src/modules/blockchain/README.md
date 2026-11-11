@@ -3,6 +3,7 @@
 Le module conserve la séparation des responsabilités demandée :
 
 - `DateTraceability` (Ali) possède les lots et l'historique de supply chain.
+- Chaque nouveau lot possède aussi un NFT ERC-721 `DLOT`, transférable sans altérer son producteur historique.
 - `ProductCertification` (Baha) possède les certificats et consulte uniquement `lotExists` via l'interface publique d'Ali.
 - MongoDB ne remplace jamais la Blockchain : il indexe les liens produit/lot et les correspondances boutique/wallet vérifiées par signature.
 
@@ -23,5 +24,6 @@ Le module conserve la séparation des responsabilités demandée :
 - Un produit ne peut plus changer de lot après son association.
 - Un certificat n'est présenté comme valide qu'après appel de `verifyCertificate` sur le contrat.
 - Les pages produit et QR effectuent une lecture serveur sans demander MetaMask au client.
+- Les lecteurs tolèrent encore un ancien contrat sans NFT afin de permettre une migration progressive.
 
 Les commandes manuelles de validation et le scénario complet sont documentés dans `docs/blockchain-integration.md`.

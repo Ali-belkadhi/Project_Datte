@@ -28,14 +28,20 @@ export function CertificationAdminWorkspace({
   config,
   candidates,
   certificates,
+  initialProductId,
 }: {
   config: PublicCertificationConfig | null;
   candidates: Candidate[];
   certificates: VerifiedCertificate[];
+  initialProductId?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(candidates[0]?.productId ?? "");
+  const [selectedProduct, setSelectedProduct] = useState(
+    candidates.some((item) => item.productId === initialProductId)
+      ? initialProductId ?? ""
+      : candidates[0]?.productId ?? "",
+  );
   const [form, setForm] = useState({
     certificateId: "",
     certifierName: "DEGLA Certification",

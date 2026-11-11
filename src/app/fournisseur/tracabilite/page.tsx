@@ -26,6 +26,7 @@ export default async function FournisseurTraceabilityPage() {
       <TraceabilityWorkspace
         supplierId={user.fournisseurId}
         shopType={shop.type}
+        shopVerified={shop.verifie}
         config={getOptionalPublicBlockchainConfig()}
         lots={data.lots}
         links={data.links}

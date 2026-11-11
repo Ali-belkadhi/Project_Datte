@@ -22,13 +22,20 @@ type RawStep = {
   documentHash: string;
 };
 
-const toLot = (raw: RawLot): TraceabilityLot => ({
+type TokenMetadata = {
+  tokenId: string | null;
+  tokenOwner: string | null;
+  tokenUri: string | null;
+};
+
+const toLot = (raw: RawLot, token: TokenMetadata): TraceabilityLot => ({
   lotId: raw.lotId,
   producer: getAddress(raw.producer),
   region: raw.region,
   variety: raw.variety,
   harvestDate: Number(raw.harvestDate),
   exists: raw.exists,
+  ...token,
 });
 
 const toStep = (raw: RawStep): TraceabilityStep => ({
@@ -46,6 +53,24 @@ function connection() {
   return { config, provider, contract };
 }
 
+async function readTokenMetadata(contract: Contract, lotId: string): Promise<TokenMetadata> {
+  try {
+    const tokenId = (await contract.tokenIdForLot(lotId)) as bigint;
+    const [tokenOwner, tokenUri] = await Promise.all([
+      contract.ownerOf(tokenId) as Promise<string>,
+      contract.tokenURI(tokenId) as Promise<string>,
+    ]);
+    return {
+      tokenId: tokenId.toString(),
+      tokenOwner: getAddress(tokenOwner),
+      tokenUri: String(tokenUri),
+    };
+  } catch {
+    // Compatibilité avec les déploiements DateTraceability antérieurs à la tokenisation DLOT.
+    return { tokenId: null, tokenOwner: null, tokenUri: null };
+  }
+}
+
 export const dateTraceabilityGateway: TraceabilityReader = {
   async lotExists(lotId) {
     const { contract } = connection();
@@ -53,7 +78,11 @@ export const dateTraceabilityGateway: TraceabilityReader = {
   },
   async getLot(lotId) {
     const { contract } = connection();
-    return toLot((await contract.getLot(lotId)) as RawLot);
+    const [raw, token] = await Promise.all([
+      contract.getLot(lotId) as Promise<RawLot>,
+      readTokenMetadata(contract, lotId),
+    ]);
+    return toLot(raw, token);
   },
   async getHistory(lotId) {
     const { contract } = connection();

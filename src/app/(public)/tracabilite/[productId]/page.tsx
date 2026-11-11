@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
-import { BadgeCheck, Blocks, CalendarDays, FileCheck2, MapPin, ShieldCheck, Sprout, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Blocks, CalendarDays, FileCheck2, Gem, MapPin, ShieldCheck, Sprout, WalletCards, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/layout/section";
 import { Breadcrumbs, PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ export const metadata = pageMetadata("Vérification de la traçabilité");
 export const dynamic = "force-dynamic";
 
 const shortAddress = (address: string) => `${address.slice(0, 8)}…${address.slice(-6)}`;
+const shortTokenId = (tokenId: string) => `${tokenId.slice(0, 8)}…${tokenId.slice(-6)}`;
 
 export default async function PublicTraceabilityPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
@@ -65,6 +66,12 @@ export default async function PublicTraceabilityPage({ params }: { params: Promi
                     <Fact icon={MapPin} label="Région d'origine" value={traceability.lot.region} />
                     <Fact icon={CalendarDays} label="Récolte" value={new Date(traceability.lot.harvestDate * 1000).toLocaleDateString("fr-FR")} />
                     <Fact icon={ShieldCheck} label="Agriculteur / producteur" value={producerActor?.shopName ?? shortAddress(traceability.lot.producer)} title={traceability.lot.producer} />
+                    {traceability.lot.tokenId && (
+                      <Fact icon={Gem} label="Token du lot" value={`DLOT #${shortTokenId(traceability.lot.tokenId)}`} title={traceability.lot.tokenId} />
+                    )}
+                    {traceability.lot.tokenOwner && (
+                      <Fact icon={WalletCards} label="Propriétaire du NFT" value={shortAddress(traceability.lot.tokenOwner)} title={traceability.lot.tokenOwner} />
+                    )}
                   </dl>
                   <TraceabilityTimeline history={traceability.history} actors={traceability.actors} />
                 </>

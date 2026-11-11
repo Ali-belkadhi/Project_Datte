@@ -9,7 +9,13 @@ import { getProduitPublicParId } from "@/server/modules/catalogue/services/produ
 export const metadata = pageMetadata("Certifications Blockchain");
 export const dynamic = "force-dynamic";
 
-export default async function AdminCertificationsPage() {
+export default async function AdminCertificationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ productId?: string | string[] }>;
+}) {
+  const { productId } = await searchParams;
+  const initialProductId = Array.isArray(productId) ? productId[0] : productId;
   const [links, certificates] = await Promise.all([
     listAllProductBlockchainLinks(),
     listBlockchainCertificates(),
@@ -30,6 +36,7 @@ export default async function AdminCertificationsPage() {
         config={getOptionalPublicCertificationConfig()}
         candidates={candidates}
         certificates={certificates}
+        initialProductId={initialProductId}
       />
     </div>
   );

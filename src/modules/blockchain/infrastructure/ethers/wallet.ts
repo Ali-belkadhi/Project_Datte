@@ -1,6 +1,6 @@
 "use client";
 
-import { BrowserProvider, Contract, type ContractTransactionResponse, type Eip1193Provider, getAddress } from "ethers";
+import { BrowserProvider, Contract, type ContractTransactionResponse, type Eip1193Provider, getAddress, isAddress } from "ethers";
 import type { PublicBlockchainConfig, TraceabilityLot, TraceabilityStep, TraceabilityStepType } from "../../domain/traceability";
 import { buildLotOwnershipMessage, buildStepOwnershipMessage } from "../../application/wallet-proof";
 import { DATE_TRACEABILITY_ABI } from "./date-traceability.abi";
@@ -32,11 +32,33 @@ export async function createLotWithWallet(
   const { contract, account, signer } = await walletConnection(config);
   const role = await contract.LOT_CREATOR_ROLE();
   if (!(await contract.hasRole(role, account))) throw new Error("Ce wallet ne possède pas le rôle de création des lots.");
-  if (await contract.lotExists(input.lotId)) throw new Error("Cet identifiant de lot existe déjà sur la Blockchain.");
-  const transaction = (await contract.createLot(input.lotId, account, input.region, input.variety, input.harvestDate)) as ContractTransactionResponse;
-  await transaction.wait();
-  const walletSignature = await signer.signMessage(buildLotOwnershipMessage({ supplierId, lotId: input.lotId, transactionHash: transaction.hash }));
-  return { transactionHash: transaction.hash, account, walletSignature };
+
+  let transactionHash: string;
+  let recovered = false;
+  if (await contract.lotExists(input.lotId)) {
+    const existingLot = await contract.getLot(input.lotId);
+    if (getAddress(String(existingLot.producer)) !== account) {
+      throw new Error("Cet identifiant de lot est déjà utilisé par un autre wallet.");
+    }
+    const events = await contract.queryFilter(contract.filters.LotCreated(input.lotId, account), 0, "latest");
+    const creationEvent = events.at(-1);
+    if (!creationEvent) throw new Error("Ce lot existe déjà, mais sa transaction de création est introuvable.");
+    transactionHash = creationEvent.transactionHash;
+    recovered = true;
+  } else {
+    const transaction = (await contract.createLot(
+      input.lotId,
+      account,
+      input.region,
+      input.variety,
+      input.harvestDate,
+    )) as ContractTransactionResponse;
+    await transaction.wait();
+    transactionHash = transaction.hash;
+  }
+
+  const walletSignature = await signer.signMessage(buildLotOwnershipMessage({ supplierId, lotId: input.lotId, transactionHash }));
+  return { transactionHash, account, walletSignature, recovered };
 }
 
 export async function addStepWithWallet(
@@ -61,11 +83,47 @@ export async function addStepWithWallet(
   return { transactionHash: transaction.hash, account, walletSignature };
 }
 
+export async function transferLotTokenWithWallet(config: PublicBlockchainConfig, tokenId: string, recipient: string) {
+  if (!/^\d+$/.test(tokenId)) throw new Error("Identifiant de token invalide.");
+  if (!isAddress(recipient)) throw new Error("Adresse du destinataire invalide.");
+
+  const { contract, account } = await walletConnection(config);
+  const owner = getAddress(String(await contract.ownerOf(tokenId)));
+  if (owner !== account) throw new Error("Le wallet connecté n'est pas propriétaire de ce NFT.");
+
+  const normalizedRecipient = getAddress(recipient);
+  if (normalizedRecipient === account) throw new Error("Le destinataire possède déjà ce NFT.");
+
+  const transaction = (await contract.safeTransferFrom(account, normalizedRecipient, tokenId)) as ContractTransactionResponse;
+  await transaction.wait();
+  return { transactionHash: transaction.hash, from: account, to: normalizedRecipient };
+}
+
+async function readTokenMetadata(contract: Contract, lotId: string) {
+  try {
+    const tokenId = (await contract.tokenIdForLot(lotId)) as bigint;
+    const [tokenOwner, tokenUri] = await Promise.all([
+      contract.ownerOf(tokenId) as Promise<string>,
+      contract.tokenURI(tokenId) as Promise<string>,
+    ]);
+    return {
+      tokenId: tokenId.toString(),
+      tokenOwner: getAddress(tokenOwner),
+      tokenUri: String(tokenUri),
+    };
+  } catch {
+    return { tokenId: null, tokenOwner: null, tokenUri: null };
+  }
+}
+
 export async function readLotWithWallet(config: PublicBlockchainConfig, lotId: string) {
   const { contract } = await walletConnection(config);
   if (!(await contract.lotExists(lotId))) return null;
   const lotRaw = await contract.getLot(lotId);
-  const historyRaw = await contract.getTraceabilityHistory(lotId);
+  const [historyRaw, token] = await Promise.all([
+    contract.getTraceabilityHistory(lotId),
+    readTokenMetadata(contract, lotId),
+  ]);
   const lot: TraceabilityLot = {
     lotId: String(lotRaw.lotId),
     producer: getAddress(String(lotRaw.producer)),
@@ -73,6 +131,7 @@ export async function readLotWithWallet(config: PublicBlockchainConfig, lotId: s
     variety: String(lotRaw.variety),
     harvestDate: Number(lotRaw.harvestDate),
     exists: Boolean(lotRaw.exists),
+    ...token,
   };
   const history: TraceabilityStep[] = historyRaw.map((step: { stepType: bigint; date: bigint; location: string; responsibleActor: string; documentHash: string }) => ({
     stepType: Number(step.stepType) as TraceabilityStepType,

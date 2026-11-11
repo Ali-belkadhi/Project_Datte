@@ -349,4 +349,50 @@ describe("DateTraceability - A1, A2 & A3", function () {
     expect(await contract.hasRole(stepRole, operator.address)).to.equal(false);
   });
 
+  it("doit frapper un NFT DLOT au producteur lors de la création du lot", async function () {
+    const { ethers } = await hre.network.create();
+    const [, producer] = await ethers.getSigners();
+    const contract = await (await ethers.getContractFactory("DateTraceability")).deploy();
+    await contract.waitForDeployment();
+
+    const lotId = "LOT-TN-2026-NFT";
+    const expectedTokenId = BigInt(ethers.keccak256(ethers.toUtf8Bytes(lotId)));
+
+    await expect(contract.createLot(lotId, producer.address, "Tozeur", "Deglet Nour", 1767225600n))
+      .to.emit(contract, "LotTokenMinted")
+      .withArgs(lotId, expectedTokenId, producer.address);
+
+    expect(await contract.name()).to.equal("DEGLA Traceability Lot");
+    expect(await contract.symbol()).to.equal("DLOT");
+    expect(await contract.tokenIdForLot(lotId)).to.equal(expectedTokenId);
+    expect(await contract.lotIdForToken(expectedTokenId)).to.equal(lotId);
+    expect(await contract.ownerOf(expectedTokenId)).to.equal(producer.address);
+    expect(await contract.balanceOf(producer.address)).to.equal(1n);
+    expect(await contract.tokenURI(expectedTokenId)).to.equal(`degla://lot/${lotId}`);
+  });
+
+  it("doit permettre au propriétaire de transférer le NFT sans modifier le producteur historique", async function () {
+    const { ethers } = await hre.network.create();
+    const [, producer, buyer] = await ethers.getSigners();
+    const contract = await (await ethers.getContractFactory("DateTraceability")).deploy();
+    await contract.waitForDeployment();
+
+    const lotId = "LOT-TN-2026-TRANSFER";
+    await contract.createLot(lotId, producer.address, "Kebili", "Alig", 1767225600n);
+    const tokenId = await contract.tokenIdForLot(lotId);
+
+    await contract.connect(producer).transferFrom(producer.address, buyer.address, tokenId);
+
+    expect(await contract.ownerOf(tokenId)).to.equal(buyer.address);
+    expect((await contract.getLot(lotId)).producer).to.equal(producer.address);
+  });
+
+  it("doit refuser la lecture du token d'un lot inexistant", async function () {
+    const { ethers } = await hre.network.create();
+    const contract = await (await ethers.getContractFactory("DateTraceability")).deploy();
+    await contract.waitForDeployment();
+
+    await expect(contract.tokenIdForLot("LOT-ABSENT")).to.be.revertedWith("Lot not found");
+  });
+
 });

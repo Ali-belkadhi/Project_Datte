@@ -15,6 +15,10 @@ export interface TraceabilityLot {
   variety: string;
   harvestDate: number;
   exists: boolean;
+  /** Null when the configured address still points to a pre-tokenisation deployment. */
+  tokenId: string | null;
+  tokenOwner: string | null;
+  tokenUri: string | null;
 }
 
 export interface TraceabilityStep {

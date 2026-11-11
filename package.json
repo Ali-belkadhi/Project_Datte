@@ -22,6 +22,7 @@
     "desktop:prepare": "node scripts/prepare-desktop.cjs",
     "desktop:dist": "node scripts/build-desktop.cjs",
     "desktop:dev": "electron desktop",
+    "blockchain:migrate-tokenized": "node scripts/migrate-tokenized-traceability.mjs",
     "test:commandes": "vitest run src/server/modules/commandes"
   },
   "dependencies": {

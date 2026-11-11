@@ -11,13 +11,7 @@ npx hardhat compile
 npx hardhat test test/DateTraceability.test.ts
 ```
 
-Le contrat déjà déployé sur le workspace Ganache actuel est :
-
-```text
-0xa610Bd684286762Cd3AC9671c9b248EBC47B6d07
-```
-
-Cette adresse n'est valable que tant que le workspace Ganache n'est pas réinitialisé.
+`DateTraceability` frappe désormais un NFT ERC-721 `DLOT` par lot. Un ancien contrat sans NFT reste lisible par l'application, mais il doit être redéployé pour activer la tokenisation.
 
 ## 2. Compiler et tester Baha — ProductCertification
 
@@ -29,7 +23,7 @@ npx hardhat test test/ProductCertification.test.ts
 ## 3. Déployer ProductCertification après DateTraceability
 
 ```powershell
-$env:TRACEABILITY_ADDRESS="0xa610Bd684286762Cd3AC9671c9b248EBC47B6d07"
+$env:TRACEABILITY_ADDRESS="0xADRESSE_DATE_TRACEABILITY"
 npx hardhat run scripts/deploy-certification.ts --network ganache
 ```
 
@@ -64,6 +58,9 @@ Le compte administrateur du site et le wallet certificateur sont deux contrôles
 8. Dans `/fournisseur/tracabilite`, associer ce produit au lot.
 9. Comme administrateur, ouvrir `/admin/certifications`, sélectionner le produit et émettre un certificat.
 10. Ouvrir la fiche produit puis sa page de traçabilité/QR. La lecture publique ne demande pas MetaMask.
+11. Vérifier l'identifiant et le propriétaire du NFT `DLOT`, puis tester son transfert depuis le wallet propriétaire.
+
+Pour mettre à niveau des données existantes, suivre la procédure de `docs/blockchain-traceability.md` et exécuter `npm run blockchain:migrate-tokenized` après avoir déployé la nouvelle paire de contrats.
 
 Un wallet ne peut être rattaché qu'à une seule boutique DEGLA sur un réseau et un contrat donnés. Utiliser des comptes MetaMask distincts pour démontrer les différents acteurs.
 

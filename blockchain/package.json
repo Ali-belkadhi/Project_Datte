@@ -7,8 +7,11 @@
     "test": "hardhat test",
     "test:traceability": "hardhat test test/DateTraceability.test.ts",
     "test:certification": "hardhat test test/ProductCertification.test.ts",
+    "deploy:all": "hardhat run scripts/deploy.ts --network ganache",
     "deploy:traceability": "hardhat run scripts/deploy-traceability.ts --network ganache",
-    "deploy:certification": "hardhat run scripts/deploy-certification.ts --network ganache"
+    "deploy:certification": "hardhat run scripts/deploy-certification.ts --network ganache",
+    "issue:certificate": "hardhat run scripts/issue-cert.ts --network ganache",
+    "issue:sample": "hardhat run scripts/issue-sample.ts --network ganache"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +23,6 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.6.1"
+    "@openzeppelin/contracts": "5.0.2"
   }
 }

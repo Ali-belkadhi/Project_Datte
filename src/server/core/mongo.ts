@@ -1,6 +1,6 @@
 import "server-only";
-import mongoose from "mongoose";
 import { MongoClient, type Db } from "mongodb";
+import { connectMongoose } from "@/server/db/mongoose";
 
 /**
  * Connexions MongoDB (une seule base : MONGODB_URI).
@@ -8,17 +8,10 @@ import { MongoClient, type Db } from "mongodb";
  *  - `getDb()`     : driver natif (module C, collections commandes / paiements / panier…).
  * Les promesses sont mises en cache sur `globalThis` pour survivre au rechargement à chaud de `next dev`.
  */
-const globalCache = globalThis as unknown as { __deglaMongo?: Promise<typeof mongoose>; __deglaMongoClient?: Promise<MongoClient> };
+const globalCache = globalThis as unknown as { __deglaMongoClient?: Promise<MongoClient> };
 
 export async function connectDB() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error("MONGODB_URI est absent de .env.local (voir .env.example).");
-  if (mongoose.connection.readyState === 1) return;
-  globalCache.__deglaMongo ??= mongoose.connect(uri).catch((e) => {
-    globalCache.__deglaMongo = undefined;
-    throw e;
-  });
-  await globalCache.__deglaMongo;
+  await connectMongoose();
 }
 
 export const connectMongo = connectDB;
