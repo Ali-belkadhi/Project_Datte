@@ -52,9 +52,9 @@ export function documentVersProduit(doc: Doc): Produit {
     fournisseurId: versFournisseur(String(doc.supplierId)),
     regionOrigine: (doc.region as Gouvernorat | undefined) ?? "TOZEUR",
     bio: Boolean(doc.organic),
-    noteMoyenne: 0,
-    nombreAvis: 0,
-    nombreVentes: 0,
+    noteMoyenne: Number(doc.averageRating ?? 0),
+    nombreAvis: Number(doc.reviewCount ?? 0),
+    nombreVentes: Math.max(0, Number(doc.salesCount ?? 0)),
     photos,
     // Le badge / l'onglet 3D n'existent que si un vrai fichier GLB est enregistré.
     modele3D: modelUrl ? ({ kind: "glb", url: modelUrl } as const) : null,

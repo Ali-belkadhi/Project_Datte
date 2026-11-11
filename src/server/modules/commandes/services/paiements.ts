@@ -20,6 +20,9 @@ type OptionsPaiement = {
 
 const DUREE_SESSION_MIN = 30; // minimum imposé par Stripe
 
+/** Stripe configuré ? Sinon, paiement par carte SIMULÉ (développement, EF-34). */
+export const stripeActif = () => Boolean(process.env.STRIPE_CLE_SECRETE);
+
 /**
  * Crée un paiement EN_ATTENTE.
  *  - CARTE (et KONNECT / FLOUCI, redirigés vers Stripe en attendant leur intégration) : session Stripe Checkout,
@@ -32,9 +35,19 @@ export async function initierPaiement(montant: number, objet: ObjetPaiement, opt
   const now = new Date();
   const doc: PaiementDoc = { reference, objet, montant, methode, statut: "EN_ATTENTE", montantRembourse: 0, creeLe: now, majLe: now };
 
+  const succesParDefaut = objet.type === "COMMANDE" ? `/commande/confirmation?numero=${objet.reference}` : "/vendeur/credits?paiement=reussi";
+
+  // Paiement simulé : aucune passerelle configurée, le paiement est validé immédiatement (idempotent)
+  if (methode !== "A_LA_LIVRAISON" && !stripeActif()) {
+    doc.referenceExterne = `SIM-${reference.slice(4)}`;
+    await (await db.paiements()).insertOne(doc);
+    await confirmerPaiement(reference, "REUSSI", { reponseBrute: { simule: true } });
+    return { reference, montant, statut: "REUSSI" as const, urlPaiement: options.succes ?? succesParDefaut, simule: true };
+  }
+
   if (methode !== "A_LA_LIVRAISON") {
     const libelle = options.description ?? (objet.type === "COMMANDE" ? `Commande DEGLA ${objet.reference}` : `Crédits 3D DEGLA — ${objet.reference}`);
-    const succes = options.succes ?? (objet.type === "COMMANDE" ? `/commande/confirmation?numero=${objet.reference}` : "/vendeur/credits?paiement=reussi");
+    const succes = options.succes ?? succesParDefaut;
     const annulation = options.annulation ?? (objet.type === "COMMANDE" ? `/commande/paiement-annule?numero=${objet.reference}` : "/vendeur/credits?paiement=annule");
     const sep = (u: string) => (u.includes("?") ? "&" : "?");
     const session = await stripe().checkout.sessions.create({
@@ -62,7 +75,7 @@ export async function initierPaiement(montant: number, objet: ObjetPaiement, opt
   }
 
   await (await db.paiements()).insertOne(doc);
-  return { reference, montant, statut: doc.statut, urlPaiement: doc.urlPaiement ?? null };
+  return { reference, montant, statut: doc.statut, urlPaiement: doc.urlPaiement ?? null, simule: false };
 }
 
 export async function getPaiement(reference: string) {

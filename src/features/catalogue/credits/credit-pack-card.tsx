@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Coins, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,18 @@ import { useAction } from "@/hooks/use-action";
 import type { PackCredits3D } from "@/types/domain";
 import { acheterCredits3D } from "@/server/modules/catalogue/actions";
 
-/** Pack de crédits 3D + Dialog de confirmation (paiement simulé). */
+/** Pack de crédits 3D + Dialog de confirmation. Paiement par le PaiementService du module C (Stripe, ou simulé en développement). */
 export function CreditPackCard({ pack: p }: { pack: PackCredits3D }) {
   const [ouvert, setOuvert] = useState(false);
-  const { run, pending } = useAction(acheterCredits3D, { onSuccess: () => setOuvert(false) });
+  const router = useRouter();
+  const { run, pending } = useAction(acheterCredits3D, {
+    onSuccess: (d) => {
+      setOuvert(false);
+      // Stripe : redirection vers la page de paiement ; simulé : crédits déjà versés
+      if (d.urlPaiement && !d.simule) window.location.assign(d.urlPaiement);
+      else router.refresh();
+    },
+  });
   return (
     <div className={cn("relative flex flex-col gap-4 rounded-2xl border-2 bg-card p-5", p.misEnAvant ? "border-brand-fill shadow-lift" : "border-border")}>
       {p.misEnAvant && <Badge className="absolute -top-3 start-5 bg-brand text-brand-foreground">Le plus choisi</Badge>}
@@ -43,11 +52,11 @@ export function CreditPackCard({ pack: p }: { pack: PackCredits3D }) {
           <DialogHeader>
             <DialogTitle className="font-display text-xl">Confirmer l&apos;achat du pack {p.nom}</DialogTitle>
             <DialogDescription>
-              {p.nombreCredits} crédits 3D pour {formatPrix(p.prix)}, ajoutés immédiatement à votre solde.
+              {p.nombreCredits} crédits 3D pour {formatPrix(p.prix)}, ajoutés à votre solde dès la confirmation du paiement.
             </DialogDescription>
           </DialogHeader>
           <p className="flex items-center gap-2 rounded-xl bg-brand-soft px-3 py-2.5 text-sm text-accent-foreground">
-            <Lock className="size-4" aria-hidden /> Paiement simulé (Konnect / Flouci) — aucun débit réel.
+            <Lock className="size-4" aria-hidden /> Paiement sécurisé par carte (Stripe) — simulé tant que la passerelle n&apos;est pas configurée.
           </p>
           <DialogFooter>
             <Button variant="brand" disabled={pending} onClick={() => run({ packId: p.id })}>

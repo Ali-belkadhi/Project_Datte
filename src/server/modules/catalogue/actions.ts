@@ -3,8 +3,9 @@
 
 import { revalidatePath } from "next/cache";
 import { runAction } from "@/server/core/action";
+import { referenceAchatCredits } from "@/server/contracts/catalogue";
 import { initierPaiement } from "@/server/contracts/commandes";
-import { getUtilisateurCourant, notifier } from "@/server/contracts/comptes";
+import { getUtilisateurCourant } from "@/server/contracts/comptes";
 import { ForbiddenError, NotFoundError } from "@/server/core/errors";
 import {
   achatCreditsSchema,
@@ -191,24 +192,20 @@ export async function acheterCredits3D(input: unknown) {
     async (d) => {
       const packs = await creditsRepository.packs();
       const pack = packs.find((p) => p.id === d.packId);
-      const credits = pack?.nombreCredits ?? 5;
+      if (!pack) throw new NotFoundError("pack de crédits");
       const { utilisateurId, fournisseurId } = await fournisseurCourant();
 
-      await creditsRepository.crediter(
-        fournisseurId,
-        credits,
-        `Achat pack ${pack?.nom || "Crédits"} (${credits} crédits)`,
-      );
-
-      const paiement = await initierPaiement(pack?.prix ?? 0, { type: "CREDITS_3D", reference: d.packId });
-      await notifier(utilisateurId, "ACHAT_CREDITS_CONFIRME", { pack: d.packId });
+      // Paiement par le PaiementService du module C ; les crédits sont versés par le callback
+      // confirmerAchatCredits3D() à la confirmation (immédiate en mode simulé, webhook avec Stripe).
+      const reference = referenceAchatCredits({ fournisseurId, utilisateurId, packId: pack.id });
+      const paiement = await initierPaiement(pack.prix, { type: "CREDITS_3D", reference });
 
       revalidatePath("/vendeur/credits");
       revalidatePath("/vendeur/studio-3d");
 
-      return { credits, paiement };
+      return { credits: pack.nombreCredits, urlPaiement: paiement.urlPaiement, simule: paiement.simule };
     },
-    "Crédits ajoutés à votre compte",
+    "Paiement des crédits 3D enregistré",
   );
 }
 

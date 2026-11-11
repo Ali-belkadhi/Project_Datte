@@ -35,6 +35,10 @@ const schema = new Schema(
     ingredients: String,
     organic: Boolean,
     region: String,
+    // tenus à jour par le module C (contrat catalogue) : avis et ventes
+    averageRating: { type: Number, default: 0 },
+    reviewCount: { type: Number, default: 0 },
+    salesCount: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
