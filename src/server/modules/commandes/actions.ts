@@ -3,7 +3,7 @@
 // Chaque action : validation Zod → contrôle du rôle → service (règles métier) → ActionResult.
 
 import { revalidatePath } from "next/cache";
-import { runAction } from "@/server/core/action";
+import { PUBLIC, runAction } from "@/server/core/action";
 import { getAdresses } from "@/server/modules/comptes/services/utilisateurs";
 import { NotFoundError } from "@/server/core/errors";
 import { getProduitsPourPanier } from "@/server/contracts/catalogue";
@@ -52,19 +52,19 @@ import { ajouterLigne, memoriserCodePromo, modifierLigne, retirerLigne, viderPan
 /* -------------------------------- Panier -------------------------------- */
 
 export async function ajouterAuPanier(input: unknown) {
-  return runAction(lignePanierSchema, input, ["CLIENT"], async (d) => ajouterLigne(d), "Ajouté au panier");
+  return runAction(lignePanierSchema, input, PUBLIC /* visiteur : panier cookie (EF-30) */, async (d) => ajouterLigne(d), "Ajouté au panier");
 }
 
 /** `ligneId` = identifiant du produit (une ligne par produit dans un panier). */
 export async function majLignePanier(input: unknown) {
-  return runAction(majLignePanierSchema, input, ["CLIENT"], async (d) => {
+  return runAction(majLignePanierSchema, input, PUBLIC /* visiteur : panier cookie (EF-30) */, async (d) => {
     await modifierLigne(d.ligneId, { quantiteGrammes: d.quantiteGrammes, quantiteUnites: d.quantiteUnites });
     return { ligneId: d.ligneId };
   }, "Panier mis à jour");
 }
 
 export async function retirerDuPanier(input: unknown) {
-  return runAction(retraitLignePanierSchema, input, ["CLIENT"], async (d) => {
+  return runAction(retraitLignePanierSchema, input, PUBLIC /* visiteur : panier cookie (EF-30) */, async (d) => {
     await retirerLigne(d.produitId);
     return { produitId: d.produitId };
   }, "Article retiré");
@@ -72,7 +72,7 @@ export async function retirerDuPanier(input: unknown) {
 
 /** Vérifie un code promo sur les lignes du panier et le mémorise pour le checkout. */
 export async function appliquerCodePromo(input: unknown) {
-  return runAction(codePromoSchema, input, ["CLIENT"], async (d) => {
+  return runAction(codePromoSchema, input, PUBLIC /* visiteur : panier cookie (EF-30) */, async (d) => {
     const lignes = d.lignes ?? [];
     const produits = await getProduitsPourPanier(lignes.map((l) => l.produitId));
     const lignesPanier = lignes.flatMap((l) => {

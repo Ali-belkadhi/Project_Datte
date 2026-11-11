@@ -14,6 +14,7 @@
 | `services/litiges.ts` | Ouverture (colis expédié/livré), décision admin avec remboursement Stripe |
 | `services/versements.ts` | Versements aux fournisseurs (cron) |
 | `services/ventes.ts` | KPIs, séries, top produits, répartition par variété calculés depuis MongoDB |
+| `services/assistant-ia.ts` | IA-C : `streamText` + outils typés, repli local automatique (sans clé, quota, panne), journal d'usage |
 
 ## Cycle de vie d'un colis (SousCommande)
 
@@ -25,6 +26,18 @@ REFUSEE / ANNULEE / LIVREE → REMBOURSEE (remboursement total)
 
 Toute transition passe par `transition()` (contrôle + écriture atomique + `HistoriqueStatut` + notification).
 
+## IA-C — assistant d'achat
+
+- Serveur : `POST /api/ia/assistant` → `streamText` + `tool()` (`rechercherProduits`, `infosVariete`, `suivreCommande`, `ajouterAuPanier` **sans execute**).
+- Client : `useChat` (`features/commandes/assistant/use-assistant.ts`) ; la confirmation d'ajout passe par la Server Action puis `addToolOutput`.
+- Modèle : `src/lib/ai.ts` (`GOOGLE_GENERATIVE_AI_API_KEY` + `AI_MODEL=gemini-3.5-flash`, ou Vercel AI Gateway).
+- Offre gratuite Gemini = 5 requêtes/min : en cas de refus ou de silence > 10 s, l'assistant répond en mode local (mêmes outils, mêmes cartes).
+- Usage (tokens, durée, outils) journalisé dans la collection `journalAudit`.
+
+## Tests
+
+`npm test` (Vitest) : panier et scission, pas de 0,5 kg, machine à états, codes promo, commission, 5 scénarios IA-C.
+
 ## Routes
 
 - `POST /api/webhooks/paiement` — webhook Stripe signé (`STRIPE_SECRET_WEBHOOK`), idempotent
@@ -33,4 +46,6 @@ Toute transition passe par `transition()` (contrôle + écriture atomique + `His
 
 ## Contrats fournis (`server/contracts/commandes.ts`)
 
-`initierPaiement(montant, objet)` (B, crédits 3D) · `statutPaiement(reference)` (B) · `fusionnerPanierVisiteur(clientId)` (A, à la connexion).
+`initierPaiement(montant, objet)` (B, crédits 3D ; callback `confirmerAchatCredits3D()` du contrat B à la confirmation) · `statutPaiement(reference)` (B) · `fusionnerPanierVisiteur(clientId)` (A, à la connexion).
+
+Consommés : `getParametresPlateforme()` / `getFournisseur()` (A, taux de commission), `reserverStock` / `libererStock` / `majNoteProduit` / `confirmerAchatCredits3D` (B, encore des stubs).

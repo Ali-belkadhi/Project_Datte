@@ -3,11 +3,15 @@
  */
 import { z } from "zod";
 import { GOUVERNORATS } from "@/types/enums";
+import { PAS_POIDS } from "@/lib/constants";
+
+/** EF-31 : une datte se vend au kilo, par pas de 0,5 kg (minimum 0,5 kg). */
+const grammes = (min: number) => z.number().int().min(min).max(50000).multipleOf(PAS_POIDS, "Le poids se choisit par pas de 0,5 kg.");
 
 export const lignePanierSchema = z
   .object({
     produitId: z.string().min(1),
-    quantiteGrammes: z.number().int().min(500).max(50000).optional(),
+    quantiteGrammes: grammes(PAS_POIDS).optional(),
     quantiteUnites: z.number().int().min(1).max(99).optional(),
   })
   .refine((l) => (l.quantiteGrammes === undefined) !== (l.quantiteUnites === undefined), {
@@ -16,7 +20,7 @@ export const lignePanierSchema = z
 
 export const majLignePanierSchema = z.object({
   ligneId: z.string().min(1),
-  quantiteGrammes: z.number().int().min(0).optional(),
+  quantiteGrammes: grammes(0).optional(), // 0 = retirer la ligne
   quantiteUnites: z.number().int().min(0).optional(),
 });
 

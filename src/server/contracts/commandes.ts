@@ -11,6 +11,8 @@ export type ObjetPaiement =
  * PaiementService.initier — utilisé par B (achat de crédits 3D).
  * Renvoie `urlPaiement` (page Stripe) vers laquelle rediriger le fournisseur ; retour sur
  * /vendeur/credits?paiement=reussi|annule. Montant en millimes.
+ * Callback : à la confirmation (webhook Stripe, idempotent), C appelle
+ * `confirmerAchatCredits3D()` du contrat catalogue (module B) avec le statut REUSSI ou ECHOUE.
  */
 export const initierPaiement = (montant: number, objet: ObjetPaiement) => _initier(montant, objet, { methode: "CARTE" });
 
