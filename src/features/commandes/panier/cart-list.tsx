@@ -65,10 +65,10 @@ export function CartList() {
         ))}
       </div>
       <div className="hidden lg:sticky lg:top-24 lg:block">
-        <CartSummary sousTotal={t.sousTotal} livraison={t.livraison} remise={remise} onRemise={setRemise} colis={t.groupes.length} />
+        <CartSummary sousTotal={t.sousTotal} livraison={t.livraison} remise={remise} onRemise={setRemise} colis={t.groupes.length} lignes={lignes} />
       </div>
       <div className="lg:hidden">
-        <CartSummary sousTotal={t.sousTotal} livraison={t.livraison} remise={remise} onRemise={setRemise} colis={t.groupes.length} cta={null} />
+        <CartSummary sousTotal={t.sousTotal} livraison={t.livraison} remise={remise} onRemise={setRemise} colis={t.groupes.length} cta={null} lignes={lignes} />
       </div>
       {/* barre fixe mobile */}
       <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t bg-background/95 px-4 py-3 backdrop-blur-xl lg:hidden">

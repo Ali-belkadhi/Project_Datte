@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container, Section } from "@/components/layout/section";
 import { Breadcrumbs } from "@/components/layout/page-header";
-import { AssistantFab } from "@/features/commandes/assistant/assistant-fab";
 import { RatingBreakdown, ReviewList } from "@/features/commandes/avis";
 import { ProductCarousel, ProductGallery, ProductInfo, ProductPurchase, ProductTabs, SellerCard } from "@/features/catalogue/produits";
 import { VarietyFactSheet } from "@/features/catalogue/varietes";
@@ -15,7 +14,6 @@ import { getProduit, getProduitAvecVendeur, produitsSimilaires } from "@/server/
 import { getVariete } from "@/server/modules/catalogue/services/varietes";
 import { getFournisseur } from "@/server/modules/comptes/services/fournisseurs";
 import { avisProduit } from "@/server/modules/commandes/services/avis";
-import { getScenariosAssistant } from "@/server/modules/commandes/services/assistant";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -29,12 +27,11 @@ export default async function ProduitPage({ params }: { params: Promise<{ slug: 
   const item = await getProduitAvecVendeur(slug);
   if (!item) notFound();
   const p = item.produit;
-  const [vendeur, variete, { avis, repartition }, similaires, assistant, traceability] = await Promise.all([
+  const [vendeur, variete, { avis, repartition }, similaires, traceability] = await Promise.all([
     getFournisseur(p.fournisseurId),
     p.variete ? getVariete(p.variete) : Promise.resolve(null),
     avisProduit(p.id),
     produitsSimilaires(p),
-    getScenariosAssistant(),
     getPublicTraceability(p.id),
   ]);
   const certification = await getPublicCertification(p.id, traceability.link?.lotId);
@@ -87,7 +84,6 @@ export default async function ProduitPage({ params }: { params: Promise<{ slug: 
       <Section tone="sand" titre="Vous aimerez aussi" className="pb-36 lg:pb-20">
         <ProductCarousel items={similaires} label="Produits similaires" />
       </Section>
-      <AssistantFab data={assistant} />
     </>
   );
 }

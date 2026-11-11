@@ -1,5 +1,6 @@
 import { BuyerShell } from "@/components/layout/buyer-shell";
 import { auth } from "@/auth";
+import { AssistantPopup } from "@/features/commandes/assistant";
 import { getPanierDemo } from "@/server/modules/commandes/services/panier";
 import { indexRecherche, RECHERCHES_POPULAIRES } from "@/server/modules/catalogue/services/recherche";
 import { mesFavorisIds } from "@/server/modules/catalogue/services/favoris";
@@ -16,6 +17,7 @@ export default async function PublicLayout({ children }: { children: React.React
   return (
     <BuyerShell index={{ ...index, populaires: RECHERCHES_POPULAIRES }} panier={panier} favoris={favoris} role={role}>
       {children}
+      <AssistantPopup />
     </BuyerShell>
   );
 }

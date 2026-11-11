@@ -4,13 +4,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PayoutTable } from "@/features/commandes/vendeur";
 import { formatDate, formatPrix } from "@/lib/format";
 import { pageMetadata } from "@/lib/seo";
-import { mesVersements, TAUX_COMMISSION } from "@/server/modules/commandes/services/versements";
+import { getUtilisateurCourant } from "@/server/contracts/comptes";
+import { mesVersements, tauxCommission } from "@/server/modules/commandes/services/versements";
 
 export const metadata = pageMetadata("Versements");
 
 /** Versements (module C) : solde à venir, prochain versement, historique, explication de la commission. */
 export default async function VersementsPage() {
-  const { versements, prochain, totalVerse } = await mesVersements();
+  const u = await getUtilisateurCourant();
+  const [{ versements, prochain, totalVerse }, taux] = await Promise.all([mesVersements(), tauxCommission(u.fournisseurId)]);
   return (
     <div className="space-y-6">
       <PageHeader surtitre="Ventes" titre="Versements" description="Vos ventes livrées sont versées tous les quinze jours sur votre RIB." />
@@ -46,7 +48,7 @@ export default async function VersementsPage() {
         <div className="space-y-1">
           <p className="font-semibold">Comment est calculée la commission ?</p>
           <p className="text-muted-foreground">
-            DEGLA prélève {TAUX_COMMISSION} % du montant des articles (hors frais de livraison) sur chaque sous-commande livrée. Elle couvre le paiement
+            DEGLA prélève {taux} % du montant des articles (hors frais de livraison) sur chaque sous-commande livrée. Elle couvre le paiement
             sécurisé, la vérification des vendeurs, l&apos;assistance et la promotion de votre boutique. Le versement est effectué 48 h après la fin de chaque
             quinzaine.
           </p>

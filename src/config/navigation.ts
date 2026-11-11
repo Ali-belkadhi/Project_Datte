@@ -25,6 +25,7 @@ import {
   Sparkles,
   Star,
   Store,
+  TicketPercent,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -59,6 +60,7 @@ export const buyerBottomNav: (NavItem & { featured?: boolean })[] = [
 export const accountNav: NavItem[] = [
   { href: "/compte", label: "Aperçu", icon: CircleUser, exact: true },
   { href: "/compte/commandes", label: "Mes commandes", icon: Package },
+  { href: "/compte/avis", label: "Mes avis", icon: Star },
   { href: "/compte/favoris", label: "Favoris", icon: Heart },
   { href: "/compte/adresses", label: "Adresses", icon: MapPin },
   { href: "/compte/profil", label: "Profil et sécurité", icon: Settings },
@@ -153,7 +155,11 @@ export const adminNav: NavItem[] = [
   { href: "/admin/certifications", label: "Certifications", icon: ShieldCheck },
   { href: "/admin/varietes", label: "Variétés", icon: Palmtree },
   { href: "/admin/moderation", label: "Modération", icon: Flag },
+  { href: "/admin/commandes", label: "Commandes", icon: Receipt },
   { href: "/admin/litiges", label: "Litiges", icon: Scale },
+  { href: "/admin/codes-promo", label: "Codes promo", icon: TicketPercent },
+  { href: "/admin/avis", label: "Avis", icon: Star },
+  { href: "/admin/versements", label: "Versements", icon: Wallet },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings },
 ];
 

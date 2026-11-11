@@ -6,7 +6,7 @@ import { LIVRAISON } from "@/lib/constants";
 import { formatPrix } from "@/lib/format";
 import type { GroupePanier } from "@/lib/panier";
 import { useCartStore } from "@/stores/cart-store";
-import { majLignePanier } from "@/server/modules/commandes/actions";
+import { majLignePanier, retirerDuPanier } from "@/server/modules/commandes/actions";
 import { CartLine } from "./cart-line";
 
 /** Groupe de lignes d'un même vendeur : en-tête, lignes, frais, barre « livraison offerte ». */
@@ -33,7 +33,10 @@ export function CartSupplierGroup({ groupe: g }: { groupe: GroupePanier }) {
               majQuantite(l.id, q);
               void majLignePanier({ ligneId: l.id, ...q });
             }}
-            onRetirer={() => retirer(l.id)}
+            onRetirer={() => {
+              retirer(l.id);
+              void retirerDuPanier({ produitId: l.produitId });
+            }}
           />
         ))}
       </ul>

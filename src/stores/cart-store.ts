@@ -17,12 +17,17 @@ type CartState = {
   majQuantite: (id: string, q: { quantiteGrammes?: number; quantiteUnites?: number }) => void;
   retirer: (id: string) => void;
   vider: () => void;
+  /** Code promo validé par le serveur (réévalué au checkout). */
+  codePromo: string | null;
+  setCodePromo: (code: string | null) => void;
 };
 
 export const useCartStore = create<CartState>((set, get) => ({
   lignes: [],
   hydrate: false,
   pulse: 0,
+  codePromo: null,
+  setCodePromo: (codePromo) => set({ codePromo }),
   initialiser: (lignes) => {
     if (get().hydrate) return;
     set({ lignes, hydrate: true });
@@ -44,11 +49,11 @@ export const useCartStore = create<CartState>((set, get) => ({
           ),
         };
       }
-      return { pulse: s.pulse + 1, lignes: [...s.lignes, { ...ligne, id: `lp-${ligne.produitId}-${s.pulse + 1}` }] };
+      return { pulse: s.pulse + 1, lignes: [...s.lignes, { ...ligne, id: ligne.produitId }] };
     }),
   majQuantite: (id, q) => set((s) => ({ lignes: s.lignes.map((l) => (l.id === id ? { ...l, ...q } : l)) })),
   retirer: (id) => set((s) => ({ lignes: s.lignes.filter((l) => l.id !== id) })),
-  vider: () => set({ lignes: [] }),
+  vider: () => set({ lignes: [], codePromo: null }),
 }));
 
 /** Nombre d'articles (une ligne = un article). */

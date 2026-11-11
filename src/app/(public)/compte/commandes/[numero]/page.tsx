@@ -6,7 +6,8 @@ import { OrderDetail } from "@/features/commandes/suivi";
 import { STATUT_COMMANDE } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { pageMetadata } from "@/lib/seo";
-import { getCommande } from "@/server/modules/commandes/services/commandes";
+import { getCommande, lignesDejaNotees } from "@/server/modules/commandes/services/commandes";
+import { numeroFacture } from "@/server/modules/commandes/services/factures";
 
 export async function generateMetadata({ params }: { params: Promise<{ numero: string }> }): Promise<Metadata> {
   const { numero } = await params;
@@ -18,6 +19,7 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
   const { numero } = await params;
   const c = await getCommande(numero);
   if (!c) notFound();
+  const [notees, facture] = await Promise.all([lignesDejaNotees(numero), numeroFacture(numero)]);
   return (
     <>
       <PageHeader
@@ -29,7 +31,7 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
           </span>
         }
       />
-      <OrderDetail commande={c} />
+      <OrderDetail commande={c} lignesNotees={notees} facture={facture} />
     </>
   );
 }

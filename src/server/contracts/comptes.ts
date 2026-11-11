@@ -1,7 +1,7 @@
 // CONTRAT — fourni par le MODULE A (Comptes), utilisé par B et C.
 // API stable : les modules B/C ne dépendent que de ces signatures.
 import "server-only";
-import type { Fournisseur, Utilisateur } from "@/types/domain";
+import type { Fournisseur, ParametresPlateforme, Utilisateur } from "@/types/domain";
 import type { TypeNotification } from "@/types/enums";
 import {
   estFournisseurVerifie as _estVerifie,
@@ -11,6 +11,7 @@ import {
   notifier as _notifier,
 } from "@/server/modules/comptes/services";
 import { fournisseurRepository as _fournisseursLegacy } from "@/server/modules/comptes/repositories";
+import { getParametresPlateforme as _getParametres } from "@/server/modules/comptes/services/admin";
 
 export { requireRole } from "@/server/core/rbac";
 
@@ -37,6 +38,9 @@ export const listFournisseursVerifies = async (): Promise<Fournisseur[]> => {
 };
 
 export const estFournisseurVerifie = (id: string): Promise<boolean> => _estVerifie(id);
+
+/** Paramètres globaux (taux de commission en %, frais de livraison…) — utilisé par C. */
+export const getParametresPlateforme = (): Promise<ParametresPlateforme> => _getParametres();
 
 export const notifier = (utilisateurId: string, type: TypeNotification, donnees: Record<string, unknown> = {}) =>
   _notifier(utilisateurId, type, donnees);
