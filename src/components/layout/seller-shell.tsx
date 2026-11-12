@@ -76,9 +76,13 @@ export function SellerShell({ children, credits, notificationsNonLues, vendeur }
             </Link>
             <Link
               href={`/boutique/${vendeur.slug}`}
-              className="hidden h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold hover:bg-accent sm:inline-flex"
+              aria-label="Voir ma boutique"
+              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold whitespace-nowrap hover:bg-accent sm:px-4"
             >
-              Voir ma boutique <ExternalLink className="size-3.5" aria-hidden />
+              {/* libellé court sur mobile pour tenir dans l'en-tête */}
+              <span className="sm:hidden">Ma boutique</span>
+              <span className="hidden sm:inline">Voir ma boutique</span>
+              <ExternalLink className="size-3.5" aria-hidden />
             </Link>
           </div>
         </header>
