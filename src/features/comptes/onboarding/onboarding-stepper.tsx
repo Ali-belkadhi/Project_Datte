@@ -184,7 +184,7 @@ export function OnboardingStepper({ boutique, motifRefus, initialDocuments = [] 
             <Label htmlFor="ob-rib">RIB (20 chiffres)</Label>
             <Input id="ob-rib" type="password" inputMode="numeric" autoComplete="off" value={f.rib} onChange={(e) => set("rib", e.target.value.replace(/\D/g, "").slice(0, 20))} placeholder="•••• •••• •••• •••• ••••" className="font-mono tracking-widest" />
             <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
-              <Lock className="size-3.5" aria-hidden /> Masqué et chiffré. Vos versements arrivent tous les quinze jours.
+              <Lock className="size-3.5" aria-hidden /> Masqué et chiffré.
             </p>
           </div>
         )}

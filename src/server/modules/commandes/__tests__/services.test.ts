@@ -34,7 +34,7 @@ vi.mock("@/server/contracts/catalogue", () => ({
 
 const { TRANSITIONS, actionsPossibles } = await import("../services/commandes");
 const { evaluerCodePromo } = await import("../services/codes-promo");
-const { calculerCommission, tauxCommission, TAUX_COMMISSION_DEFAUT } = await import("../services/versements");
+const { calculerCommission, tauxCommission, TAUX_COMMISSION_DEFAUT } = await import("../services/commission");
 
 /* ---------------------------- Machine à états ---------------------------- */
 

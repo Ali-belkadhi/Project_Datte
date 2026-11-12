@@ -4,10 +4,9 @@ import type { Collection } from "mongodb";
 import { COMMANDES_ACHETEUR, PANIER_DEMO, SOUS_COMMANDES_VENDEUR } from "@/mocks/commandes";
 import { AVIS } from "@/mocks/avis";
 import { LITIGES } from "@/mocks/admin";
-import { VERSEMENTS } from "@/mocks/ventes";
 import { getDb } from "@/server/core/mongo";
 import type { ObjetPaiement } from "@/server/contracts/commandes";
-import type { Adresse, Avis, Commande, Litige, SousCommande, Versement } from "@/types/domain";
+import type { Adresse, Avis, Commande, Litige, SousCommande } from "@/types/domain";
 import type { MethodePaiement, StatutCommande, StatutPaiement, StatutSousCommande } from "@/types/enums";
 
 /* ------------------------------- Documents ------------------------------- */
@@ -38,8 +37,6 @@ export type SousCommandeDoc = Omit<SousCommande, "etapes" | "id"> & {
   remise?: number;
   /** Paiement par carte pas encore confirmé : le colis est invisible pour le vendeur. */
   enAttentePaiement?: boolean;
-  /** Versement fournisseur qui inclut ce colis. */
-  versementId?: string;
 };
 
 export type LignePanierDoc = { produitId: string; quantiteGrammes?: number; quantiteUnites?: number };
@@ -80,7 +77,6 @@ export type FactureDoc = { numero: string; commandeNumero: string; pdfUrl: strin
 export type PhotoAvisDoc = { id: string; url: string };
 export type AvisDoc = Avis & { clientId: string | null; ligneCommandeId: string; statut: "VISIBLE" | "MASQUE"; photos?: PhotoAvisDoc[]; modifieLe?: string };
 export type LitigeDoc = Litige & { clientId: string; montantRembourse?: number; adminId?: string; clotureLe?: string };
-export type VersementDoc = Versement & { fournisseurId: string; sousCommandes: string[] };
 
 /* ------------------------------ Collections ------------------------------ */
 
@@ -99,7 +95,6 @@ export const db = {
   factures: () => col<FactureDoc>("factures"),
   avis: () => col<AvisDoc>("avis"),
   litiges: () => col<LitigeDoc>("litiges"),
-  versements: () => col<VersementDoc>("versements"),
 };
 
 export const SANS_ID = { projection: { _id: 0 } } as const;
@@ -118,7 +113,7 @@ let amorcage: Promise<void> | null = null;
 /**
  * Index + données de départ, une seule fois par base :
  *  - codes promo de lancement (toujours) ;
- *  - commandes, avis, litiges et versements de démonstration (MONGODB_DEMO=true uniquement :
+ *  - commandes, avis et litiges de démonstration (MONGODB_DEMO=true uniquement :
  *    dans l'application intégrée, les clients et produits sont réels).
  */
 function amorcer() {
@@ -292,6 +287,5 @@ async function insererDemo() {
     ),
     base.collection<AvisDoc>("avis").insertMany(AVIS.map((a) => ({ ...a, clientId: null, ligneCommandeId: `demo-${a.id}`, statut: "VISIBLE" as const }))),
     base.collection<LitigeDoc>("litiges").insertMany(LITIGES.map((l) => ({ ...l, clientId: "u-demo" }))),
-    base.collection<VersementDoc>("versements").insertMany(VERSEMENTS.map((v) => ({ ...v, fournisseurId: "f-ben-amor", sousCommandes: [] }))),
   ]);
 }

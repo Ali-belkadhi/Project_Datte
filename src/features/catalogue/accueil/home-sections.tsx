@@ -170,7 +170,7 @@ export function SellerBanner() {
         </span>
         <div className="space-y-1.5">
           <h2 className="font-display text-2xl font-semibold text-balance md:text-3xl">Vous produisez des dattes ? Ouvrez votre boutique sur DEGLA.</h2>
-          <p className="text-muted-foreground">Inscription gratuite, 3 crédits 3D offerts, paiement sécurisé et versements tous les quinze jours.</p>
+          <p className="text-muted-foreground">Inscription gratuite, 3 crédits 3D offerts, paiement sécurisé et commandes suivies en temps réel.</p>
         </div>
       </div>
       <Button asChild size="lg" className="shrink-0">

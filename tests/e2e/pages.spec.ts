@@ -9,13 +9,13 @@ type Ids = { produitSlug: string; produitId: string; boutique: string; variete: 
 const PUBLIQUES = ["/", "/catalogue", "/varietes", "/recherche?q=deglet", "/assistant", "/panier", "/certifier", "/connexion", "/inscription", "/mot-de-passe", "/offline"];
 const CLIENT = ["/compte", "/compte/commandes", "/compte/avis", "/compte/favoris", "/compte/adresses", "/compte/messages", "/compte/notifications", "/compte/profil", "/commande", "/commande/paiement-annule"];
 const FOURNISSEUR = [
-  "/vendeur", "/vendeur/commandes", "/vendeur/produits", "/vendeur/produits/nouveau", "/vendeur/avis", "/vendeur/versements", "/vendeur/credits",
+  "/vendeur", "/vendeur/commandes", "/vendeur/produits", "/vendeur/produits/nouveau", "/vendeur/avis", "/vendeur/credits",
   "/vendeur/messages", "/vendeur/boutique", "/vendeur/parametres", "/vendeur/studio-3d", "/fournisseur/produits", "/fournisseur/produits/ajouter",
   "/fournisseur/credits", "/fournisseur/studio-3d", "/fournisseur/tracabilite",
 ];
 const ADMIN = [
   "/admin", "/admin/fournisseurs", "/admin/varietes", "/admin/categories", "/admin/packs", "/admin/moderation", "/admin/commandes", "/admin/litiges",
-  "/admin/codes-promo", "/admin/avis", "/admin/versements", "/admin/certifications", "/admin/parametres",
+  "/admin/codes-promo", "/admin/avis", "/admin/certifications", "/admin/parametres",
 ];
 
 let ids: Ids;

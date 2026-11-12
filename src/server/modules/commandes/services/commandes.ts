@@ -13,7 +13,7 @@ import { ForbiddenError, NotFoundError } from "@/server/core/errors";
 import { db, prochainNumero, SANS_ID, type CommandeDoc, type HistoriqueStatut, type SousCommandeDoc } from "../repositories/mongo";
 import { evaluerCodePromo, consommerCodePromo } from "./codes-promo";
 import { encaisserALaLivraison, initierPaiement, rembourserCommande } from "./paiements";
-import { calculerCommission, tauxCommission } from "./versements";
+import { calculerCommission, tauxCommission } from "./commission";
 
 /* ----------------------------- Lecture / vues ---------------------------- */
 
@@ -192,7 +192,7 @@ export async function creerCommande({ lignes, adresse, livraison, methodePaiemen
 
   const paiement = await initierPaiement(commande.total, { type: "COMMANDE", reference: numero }, { methode: methodePaiement, email: u.email });
   await (await db.commandes()).updateOne({ numero }, { $set: { paiementReference: paiement.reference } });
-  if (!carte) await notifier(u.id, "COMMANDE_STATUT", { numero, statut: "EN_ATTENTE" });
+  if (!carte) await notifier(u.id, "COMMANDE_STATUT", { numero, commande: numero, statut: "EN_ATTENTE", total: commande.total, aLaLivraison: true });
   return { numero, total: commande.total, urlPaiement: paiement.urlPaiement };
 }
 
@@ -216,7 +216,7 @@ export async function surPaiementCommande(numero: string, reference: string, sta
     await (await db.sousCommandes()).updateMany({ commandeNumero: numero }, { $unset: { enAttentePaiement: "" } });
     const { creerFacture } = await import("./factures");
     await creerFacture(numero);
-    await notifier(c.clientId, "COMMANDE_STATUT", { numero, statut: "PAYEE" });
+    await notifier(c.clientId, "COMMANDE_STATUT", { numero, commande: numero, statut: "PAYEE", total: c.total });
     return;
   }
   // Échec ou expiration : seule la session de paiement en cours annule la commande.
@@ -229,7 +229,7 @@ export async function surPaiementCommande(numero: string, reference: string, sta
     { $set: { statut: "ANNULEE" }, $push: { historique: { ancienStatut: "EN_ATTENTE", nouveauStatut: "ANNULEE", auteurId: null, commentaire: "Paiement non abouti", date: now } } },
   );
   await (await db.commandes()).updateOne({ numero }, { $set: { statut: "ANNULEE", annuleeLe: now } });
-  await notifier(c.clientId, "COMMANDE_STATUT", { numero, statut: "ANNULEE" });
+  await notifier(c.clientId, "COMMANDE_STATUT", { numero, commande: numero, statut: "ANNULEE", motif: "Le paiement n'a pas abouti" });
 }
 
 /* ---------------------------- Machine à états ---------------------------- */
@@ -273,7 +273,17 @@ async function transition(
   );
   if (!r) throw new ForbiddenError("Le colis a changé d'état entre-temps, rechargez la page.");
   await recalculerStatutCommande(r.commandeNumero);
-  await notifier(r.clientId, "COMMANDE_STATUT", { numero, statut: vers });
+  await notifier(r.clientId, "COMMANDE_STATUT", {
+    numero, // numéro du colis (sous-commande)
+    commande: r.commandeNumero,
+    statut: vers,
+    vendeur: r.fournisseurNom,
+    produits: r.lignes.map((l) => l.nomProduit),
+    transporteur: r.transporteur,
+    numeroSuivi: r.numeroSuivi,
+    motif: vers === "REFUSEE" || vers === "ANNULEE" ? options.commentaire : undefined,
+    montant: vers === "REMBOURSEE" ? r.montantRembourse : undefined,
+  });
   return r;
 }
 

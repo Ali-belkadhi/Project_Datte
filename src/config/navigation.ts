@@ -26,7 +26,6 @@ import {
   Star,
   Store,
   TicketPercent,
-  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -126,7 +125,6 @@ export const sellerNav: NavSection[] = [
     items: [
       { href: "/vendeur/commandes", label: "Commandes", icon: Receipt, badge: "4" },
       { href: "/vendeur/avis", label: "Avis", icon: Star },
-      { href: "/vendeur/versements", label: "Versements", icon: Wallet },
     ],
   },
   {
@@ -159,7 +157,6 @@ export const adminNav: NavItem[] = [
   { href: "/admin/litiges", label: "Litiges", icon: Scale },
   { href: "/admin/codes-promo", label: "Codes promo", icon: TicketPercent },
   { href: "/admin/avis", label: "Avis", icon: Star },
-  { href: "/admin/versements", label: "Versements", icon: Wallet },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings },
 ];
 

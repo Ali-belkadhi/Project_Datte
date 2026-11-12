@@ -144,6 +144,3 @@ export const suppressionAvisSchema = z.object({ avisId: z.string().min(1) });
 
 export const moderationAvisSchema = z.object({ avisId: z.string().min(1), statut: z.enum(["VISIBLE", "MASQUE"]) });
 
-/* ------------------------------- Versements ------------------------------ */
-
-export const versementSchema = z.object({ id: z.string().min(1), statut: z.enum(["EFFECTUE", "ECHOUE"]) });

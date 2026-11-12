@@ -30,12 +30,10 @@ import {
   moderationAvisSchema,
   suppressionAvisSchema,
   suppressionCodePromoSchema,
-  versementSchema,
   type CheckoutInput,
 } from "@/lib/validation/commandes";
 import { laisserAvis as _laisserAvis, modererAvis as _modererAvis, modifierAvis as _modifierAvis, repondreAvis as _repondreAvis, supprimerAvis as _supprimerAvis } from "./services/avis";
 import { basculerCodePromo as _basculerCode, creerCodePromo as _creerCode, evaluerCodePromo, modifierCodePromo as _modifierCode, supprimerCodePromo as _supprimerCode } from "./services/codes-promo";
-import { marquerVersement as _marquerVersement, planifierVersements } from "./services/versements";
 import {
   accepterColis,
   annulerParClient,
@@ -271,22 +269,4 @@ export async function modererAvis(input: unknown) {
     revalidatePath("/admin/avis");
     return r;
   }, "Avis mis à jour");
-}
-
-/* ------------------------------- Versements ------------------------------ */
-
-export async function calculerVersements() {
-  return runAction(versementSchema.pick({}), {}, ["ADMIN"], async () => {
-    const r = await planifierVersements();
-    revalidatePath("/admin/versements");
-    return r;
-  }, "Versements calculés");
-}
-
-export async function marquerVersement(input: unknown) {
-  return runAction(versementSchema, input, ["ADMIN"], async (d) => {
-    await _marquerVersement(d.id, d.statut);
-    revalidatePath("/admin/versements");
-    return d;
-  }, "Versement mis à jour");
 }

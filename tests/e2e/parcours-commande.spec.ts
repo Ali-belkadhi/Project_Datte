@@ -144,12 +144,12 @@ test.describe.serial("parcours commande", () => {
     expect(paiement?.statut).toBe("REUSSI");
   });
 
-  test("admin : vue globale des commandes, codes promo, litiges, versements", async ({ page }) => {
+  test("admin : vue globale des commandes, codes promo, litiges", async ({ page }) => {
     await page.goto("/connexion?callbackUrl=%2Fadmin%2Fcommandes");
     await connexion(page, "admin@degla.tn");
     await expect(page).toHaveURL(/\/admin\/commandes/, { timeout: 60_000 });
     await expect(page.getByText(numero).first()).toBeVisible({ timeout: 30_000 });
-    for (const [chemin, texte] of [["/admin/codes-promo", "DEGLA10"], ["/admin/litiges", "Litiges"], ["/admin/versements", "Versements"]]) {
+    for (const [chemin, texte] of [["/admin/codes-promo", "DEGLA10"], ["/admin/litiges", "Litiges"]]) {
       await page.goto(chemin);
       await expect(page.getByText(texte).first()).toBeVisible({ timeout: 30_000 });
     }

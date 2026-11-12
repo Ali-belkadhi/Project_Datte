@@ -25,7 +25,6 @@ const LIBELLES: Record<string, string> = {
   credits: "Crédits 3D",
   commandes: "Commandes",
   avis: "Avis",
-  versements: "Versements",
   boutique: "Ma boutique",
   messages: "Messages",
   parametres: "Paramètres",
@@ -75,7 +74,8 @@ export function SellerShell({ children, credits, notificationsNonLues, vendeur }
               {notificationsNonLues > 0 && <span className="absolute end-2.5 top-2.5 size-2.5 rounded-full bg-danger ring-2 ring-background" />}
             </Link>
             <Link
-              href={`/boutique/${vendeur.slug}`}
+              // boutique pas encore créée (inscription inachevée) : on ouvre son édition plutôt qu'un lien cassé
+              href={vendeur.slug ? `/boutique/${vendeur.slug}` : "/vendeur/boutique"}
               aria-label="Voir ma boutique"
               className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold whitespace-nowrap hover:bg-accent sm:px-4"
             >
