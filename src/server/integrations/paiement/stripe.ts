@@ -26,11 +26,34 @@ export function millimesVersCentimes(millimes: number) {
 }
 
 /** URL publique de l'application (redirections Stripe). */
+/** Valeur d'URL exploitable (ignore les valeurs vides ou provisoires « A-REMPLACER »). */
+const urlValide = (u?: string) => (u && /^https?:\/\//.test(u) && !/A-REMPLACER/i.test(u) ? u : "");
+
+/** URL publique configurée (variables d'environnement), sinon URL Vercel, sinon localhost. */
 export const urlApp = () =>
   (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.APP_URL ||
+    urlValide(process.env.NEXT_PUBLIC_APP_URL) ||
+    urlValide(process.env.APP_URL) ||
     (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "") ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
     "http://localhost:3000"
   ).replace(/\/$/, "");
+
+/**
+ * URL du site telle que le client la voit (domaine de la requête en cours) : c'est l'adresse de
+ * retour la plus sûre après le paiement Stripe. Repli sur urlApp() hors requête.
+ */
+export async function urlAppRequete() {
+  try {
+    const { headers } = await import("next/headers");
+    const h = await headers();
+    const hote = h.get("x-forwarded-host") ?? h.get("host");
+    if (hote) {
+      const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? (hote.startsWith("localhost") || hote.startsWith("127.") ? "http" : "https");
+      return `${proto}://${hote}`.replace(/\/$/, "");
+    }
+  } catch {
+    // hors d'une requête (tâche planifiée, script) : variables d'environnement
+  }
+  return urlApp();
+}

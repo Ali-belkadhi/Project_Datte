@@ -14,7 +14,7 @@ export const env = {
   MONGODB_URI: process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/degla",
   // sur Vercel, repli sur l'URL de production du projet si APP_URL n'est pas défini
   APP_URL:
-    process.env.APP_URL ||
+    (process.env.APP_URL && !/A-REMPLACER/i.test(process.env.APP_URL) ? process.env.APP_URL : "") ||
     (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "") ||
     "http://localhost:3000",
   AUTH_SECRET: process.env.AUTH_SECRET,

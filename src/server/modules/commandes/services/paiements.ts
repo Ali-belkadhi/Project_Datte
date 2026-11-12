@@ -3,7 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import type Stripe from "stripe";
 import type { ObjetPaiement } from "@/server/contracts/commandes";
-import { DEVISE_STRIPE, TAUX_TND_VERS_DEVISE, millimesVersCentimes, stripe, urlApp } from "@/server/integrations/paiement";
+import { DEVISE_STRIPE, TAUX_TND_VERS_DEVISE, millimesVersCentimes, stripe, urlAppRequete } from "@/server/integrations/paiement";
 import type { MethodePaiement } from "@/types/enums";
 import { db, SANS_ID, type PaiementDoc } from "../repositories/mongo";
 
@@ -50,6 +50,7 @@ export async function initierPaiement(montant: number, objet: ObjetPaiement, opt
     const succes = options.succes ?? succesParDefaut;
     const annulation = options.annulation ?? (objet.type === "COMMANDE" ? `/commande/paiement-annule?numero=${objet.reference}` : "/vendeur/credits?paiement=annule");
     const sep = (u: string) => (u.includes("?") ? "&" : "?");
+    const base = await urlAppRequete(); // domaine réel du client : le retour Stripe arrive toujours sur le bon site
     const session = await stripe().checkout.sessions.create({
       mode: "payment",
       client_reference_id: reference,
@@ -67,8 +68,8 @@ export async function initierPaiement(montant: number, objet: ObjetPaiement, opt
       metadata: { reference, objetType: objet.type, objetReference: objet.reference },
       payment_intent_data: { metadata: { reference } },
       expires_at: Math.floor(Date.now() / 1000) + DUREE_SESSION_MIN * 60,
-      success_url: `${urlApp()}${succes}${sep(succes)}session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${urlApp()}${annulation}`,
+      success_url: `${base}${succes}${sep(succes)}session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}${annulation}`,
     });
     doc.referenceExterne = session.id;
     doc.urlPaiement = session.url ?? undefined;
