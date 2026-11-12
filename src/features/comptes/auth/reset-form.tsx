@@ -44,7 +44,7 @@ export function ResetForm() {
         <h1 className="font-display text-3xl font-semibold">Mot de passe oublié ?</h1>
         <p className="text-muted-foreground">Indiquez votre adresse e-mail : nous vous enverrons un lien pour en choisir un nouveau.</p>
       </div>
-      <form
+      <form method="post"
         className="space-y-4"
         noValidate
         onSubmit={form.handleSubmit(async (v) => {

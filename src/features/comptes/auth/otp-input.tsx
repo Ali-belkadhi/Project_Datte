@@ -32,7 +32,7 @@ export function OtpInput({ email, suite }: { email: string; suite: string }) {
           Saisissez le code à 6 chiffres envoyé à <span className="font-semibold text-foreground">{email}</span>.
         </p>
       </div>
-      <form
+      <form method="post"
         className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();

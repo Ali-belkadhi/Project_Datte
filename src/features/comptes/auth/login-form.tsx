@@ -26,7 +26,7 @@ export function LoginForm() {
       </div>
       <GoogleButton />
       <Separateur />
-      <form
+      <form method="post"
         onSubmit={form.handleSubmit(async (v) => {
           setPending(true);
           console.log("[LoginForm] submit — calling signIn with redirect:false");

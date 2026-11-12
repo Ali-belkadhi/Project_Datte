@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { lireJetonSession } from "@/lib/auth/token";
 
 // /panier et /assistant restent ouverts aux visiteurs (panier invité EF-30, assistant IA-C) ;
 // le checkout (/commande) et le compte exigent une connexion.
@@ -8,10 +8,7 @@ const FOURNISSEUR_PATHS = ["/vendeur", "/fournisseur"];
 const ADMIN_PATHS = ["/admin"];
 
 export async function proxy(request: NextRequest) {
-  const token = await getToken({
-    req: request,
-    secret: process.env.AUTH_SECRET ?? "dev-only-secret-please-set-AUTH_SECRET",
-  });
+  const token = await lireJetonSession(request);
   const role = (token as { role?: string } | null)?.role;
   const { pathname } = request.nextUrl;
   const matches = (paths: string[]) => paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));

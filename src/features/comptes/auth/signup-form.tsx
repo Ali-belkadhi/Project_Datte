@@ -33,7 +33,7 @@ export function SignupForm({ roleInitial }: { roleInitial: "CLIENT" | "FOURNISSE
       <Controller control={form.control} name="role" render={({ field }) => <RolePicker value={field.value} onChange={field.onChange} />} />
       <GoogleButton />
       <Separateur texte="ou avec votre e-mail" />
-      <form onSubmit={form.handleSubmit((v) => run(v))} className="space-y-4" noValidate>
+      <form method="post" onSubmit={form.handleSubmit((v) => run(v))} className="space-y-4" noValidate>
         <div className="grid grid-cols-2 gap-3">
           <FormField id="prenom" label="Prénom" erreur={e.prenom?.message}>
             <Input id="prenom" autoComplete="given-name" {...form.register("prenom")} aria-invalid={!!e.prenom} />

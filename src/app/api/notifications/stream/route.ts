@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { lireJetonSession } from "@/lib/auth/token";
 import { notificationBus } from "@/server/services/NotificationBus";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET ?? "dev-only-secret-please-set-AUTH_SECRET" });
+  const token = await lireJetonSession(req);
   if (!token?.sub) return new Response("Unauthorized", { status: 401 });
   const userId = token.sub;
   const stream = new ReadableStream({
