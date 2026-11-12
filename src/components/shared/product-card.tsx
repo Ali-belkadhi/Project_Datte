@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { Box, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -11,13 +12,24 @@ import { formatContenance } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { VARIETY_PRESETS } from "@/components/three/presets";
 import { useAddToCart } from "@/hooks/use-add-to-cart";
+import { LazyProductViewer, LazyScene } from "@/components/three";
 import type { ProduitAvecVendeur } from "@/types/domain";
 import { FavoriteButton } from "./favorite-button";
 
-/** Carte produit : visuel, badges (3D, Bio, remise), favori, variété, vendeur vérifié, note, prix, ajout rapide. */
+/**
+ * Carte produit : visuel (photo ou illustration), badges (3D, Bio, remise), favori, variété, vendeur vérifié,
+ * note, prix, ajout rapide. Sur ordinateur, le modèle 3D du produit s'affiche au survol de la carte.
+ */
 export function ProductCard({ item, className, compact = false }: { item: ProduitAvecVendeur; className?: string; compact?: boolean }) {
   const { produit: p, vendeur } = item;
   const ajouter = useAddToCart();
+  // aperçu 3D au survol, uniquement avec une souris (pas sur mobile) et un seul à la fois (chargé à la demande)
+  const [apercu3D, setApercu3D] = useState(false);
+  const survol = (actif: boolean) => {
+    if (!p.modele3D) return;
+    if (actif && !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    setApercu3D(actif);
+  };
   const datte = p.typeProduit === "DATTE";
   const prix = datte ? p.prixParKg : p.prixUnitaire;
   const ancien = p.remise ? Math.round(prix / (1 - p.remise / 100) / 100) * 100 : undefined;
@@ -32,12 +44,17 @@ export function ProductCard({ item, className, compact = false }: { item: Produi
         className,
       )}
     >
-      <div className="relative aspect-square overflow-hidden bg-sand">
+      <div className="relative aspect-square overflow-hidden bg-sand" onMouseEnter={() => survol(true)} onMouseLeave={() => survol(false)}>
         <ProduitVisuel produit={p} className="transition-transform duration-300 group-hover:scale-[1.04]" />
+        {apercu3D && p.modele3D && (
+          <LazyScene eager className="pointer-events-none absolute inset-0 bg-sand" fallback={null}>
+            <LazyProductViewer source={p.modele3D} label={`Aperçu 3D : ${p.nom}`} overlay={false} />
+          </LazyScene>
+        )}
         <div className="absolute start-2.5 top-2.5 flex flex-wrap gap-1.5">
           {p.modele3D && (
             <Badge variant="night" className="gap-1">
-              <Box aria-hidden /> 3D
+              <Box aria-hidden /> Vue 3D
             </Badge>
           )}
           {p.bio && <Badge variant="success">Bio</Badge>}

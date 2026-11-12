@@ -61,8 +61,24 @@ export function ProductIllustration({ type, variete = "deglet-nour", teinte, eti
   );
 }
 
-/** Illustration d'un produit du domaine (déduit type, variété, teinte et étiquette). */
+/**
+ * Photos réellement envoyées par le fournisseur (stockage DEGLA ou URL externe).
+ * Les images génériques du template (`/images/…`) ne comptent pas : l'illustration reste plus parlante.
+ */
+export function photosReelles(produit: Produit): string[] {
+  return (produit.photos ?? []).filter((u) => /^(\/api\/media\/|https?:\/\/|\/uploads\/)/.test(u));
+}
+
+/** Visuel d'un produit : sa photo (s'il en a), sinon une illustration déduite du type, de la variété et de l'étiquette. */
 export function ProduitVisuel({ produit, variante, className }: { produit: Produit; variante?: number; className?: string }) {
+  const photos = photosReelles(produit);
+  const photo = photos.length ? photos[(variante ?? 0) % photos.length] : null;
+  if (photo) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- fichiers servis par /api/media (taille déjà maîtrisée à l'envoi)
+      <img src={photo} alt={produit.nom} loading="lazy" decoding="async" className={cn("size-full object-cover", className)} />
+    );
+  }
   const derive = produit.typeProduit === "DERIVE";
   return (
     <ProductIllustration

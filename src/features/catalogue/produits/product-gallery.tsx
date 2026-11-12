@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Box, Images } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProduitVisuel } from "@/components/illustrations/product-illustration";
+import { photosReelles, ProduitVisuel } from "@/components/illustrations/product-illustration";
 import { LazyProductViewer, LazyScene } from "@/components/three";
 import { cn } from "@/lib/utils";
 import type { Produit } from "@/types/domain";
@@ -11,7 +11,8 @@ import type { Produit } from "@/types/domain";
 export function ProductGallery({ produit }: { produit: Produit }) {
   const [photo, setPhoto] = useState(0);
   const a3D = produit.modele3D !== null;
-  const nbVues = produit.photos?.length ? produit.photos.length : 4;
+  const nbPhotos = photosReelles(produit).length;
+  const nbVues = nbPhotos || 4; // vraies photos, sinon 4 variantes d'illustration
   return (
     <Tabs defaultValue={a3D ? "3d" : "photos"} className="gap-3">
       <TabsList className="w-full sm:w-fit">
