@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container, Section } from "@/components/layout/section";
 import { Breadcrumbs } from "@/components/layout/page-header";
-import { RatingBreakdown, ReviewList } from "@/features/commandes/avis";
+import Link from "next/link";
+import { RatingBreakdown, ReviewForm, ReviewList } from "@/features/commandes/avis";
+import { Button } from "@/components/ui/button";
 import { ProductCarousel, ProductGallery, ProductInfo, ProductPurchase, ProductTabs, SellerCard } from "@/features/catalogue/produits";
 import { VarietyFactSheet } from "@/features/catalogue/varietes";
 import { pageMetadata } from "@/lib/seo";
@@ -13,7 +15,7 @@ import { TraceabilitySummary } from "@/modules/blockchain/presentation/traceabil
 import { getProduit, getProduitAvecVendeur, produitsSimilaires } from "@/server/modules/catalogue/services/produits";
 import { getVariete } from "@/server/modules/catalogue/services/varietes";
 import { getFournisseur } from "@/server/modules/comptes/services/fournisseurs";
-import { avisProduit } from "@/server/modules/commandes/services/avis";
+import { avisProduit, etatAvisProduit } from "@/server/modules/commandes/services/avis";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -27,12 +29,13 @@ export default async function ProduitPage({ params }: { params: Promise<{ slug: 
   const item = await getProduitAvecVendeur(slug);
   if (!item) notFound();
   const p = item.produit;
-  const [vendeur, variete, { avis, repartition }, similaires, traceability] = await Promise.all([
+  const [vendeur, variete, { avis, repartition }, similaires, traceability, etatAvis] = await Promise.all([
     getFournisseur(p.fournisseurId),
     p.variete ? getVariete(p.variete) : Promise.resolve(null),
     avisProduit(p.id),
     produitsSimilaires(p),
     getPublicTraceability(p.id),
+    etatAvisProduit(p.id),
   ]);
   const certification = await getPublicCertification(p.id, traceability.link?.lotId);
 
@@ -68,14 +71,35 @@ export default async function ProduitPage({ params }: { params: Promise<{ slug: 
           caracteristiques={<ProductInfo produit={p} />}
           variete={variete ? <VarietyFactSheet variete={variete} resumee /> : undefined}
           avis={
-            avis.length ? (
-              <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-                <RatingBreakdown repartition={repartition} />
-                <ReviewList avis={avis} vendeur={item.vendeur.nomBoutique} />
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card p-4">
+                {etatAvis.aNoter ? (
+                  <>
+                    <p className="text-sm">Vous avez reçu ce produit : partagez votre avis avec les autres clients.</p>
+                    <ReviewForm ligneCommandeId={etatAvis.aNoter.ligneCommandeId} produitNom={etatAvis.aNoter.produitNom} trigger={<Button variant="brand">Laisser un avis</Button>} />
+                  </>
+                ) : etatAvis.client ? (
+                  <p className="text-sm text-muted-foreground">Les avis sont réservés aux achats livrés : vous pourrez noter ce produit dès la livraison de votre commande.</p>
+                ) : !etatAvis.connecte ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">Vous avez acheté ce produit ? Connectez-vous pour donner votre avis.</p>
+                    <Button asChild variant="outline">
+                      <Link href={`/connexion?callbackUrl=${encodeURIComponent(`/produit/${p.slug}`)}`}>Se connecter</Link>
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Les avis sont donnés par les clients après la livraison de leur commande.</p>
+                )}
               </div>
-            ) : (
-              <p className="text-muted-foreground">Aucun avis pour le moment : soyez le premier à partager le vôtre après votre commande.</p>
-            )
+              {avis.length ? (
+                <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+                  <RatingBreakdown repartition={repartition} />
+                  <ReviewList avis={avis} vendeur={item.vendeur.nomBoutique} />
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Aucun avis pour le moment.</p>
+              )}
+            </div>
           }
         />
         <TraceabilitySummary productId={p.id} traceability={traceability} />

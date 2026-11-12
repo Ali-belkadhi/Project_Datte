@@ -36,6 +36,24 @@ export async function mesAvisRecus() {
   return avisFournisseur(u.fournisseurId ?? "");
 }
 
+/**
+ * Pour la fiche produit : ce que le visiteur peut faire en matière d'avis (EF-40, avis réservé aux achats livrés).
+ * Renvoie la ligne d'achat livrée la plus récente de ce produit, pas encore notée, s'il y en a une.
+ */
+export async function etatAvisProduit(produitId: string): Promise<{ connecte: boolean; client: boolean; aNoter: { ligneCommandeId: string; produitNom: string } | null }> {
+  const u = await getUtilisateurCourant().catch(() => null);
+  if (!u) return { connecte: false, client: false, aNoter: null };
+  if (u.role !== "CLIENT") return { connecte: true, client: false, aNoter: null };
+  const colis = await (await db.sousCommandes()).find({ clientId: u.id, statut: "LIVREE", "lignes.produitId": produitId }).sort({ livreeLe: -1 }).toArray();
+  const lignes = colis.flatMap((s) => s.lignes.filter((l) => l.produitId === produitId));
+  if (!lignes.length) return { connecte: true, client: true, aNoter: null };
+  const notees = new Set(
+    (await (await db.avis()).find({ ligneCommandeId: { $in: lignes.map((l) => l.id) } }, { projection: { ligneCommandeId: 1 } }).toArray()).map((a) => a.ligneCommandeId),
+  );
+  const ligne = lignes.find((l) => !notees.has(l.id));
+  return { connecte: true, client: true, aNoter: ligne ? { ligneCommandeId: ligne.id, produitNom: ligne.nomProduit } : null };
+}
+
 /** Avis sur une ligne d'un colis LIVRÉ du client connecté, un seul par achat. */
 export async function laisserAvis(d: { ligneCommandeId: string; note: number; commentaire: string; photos?: string[] }) {
   const u = await getUtilisateurCourant();

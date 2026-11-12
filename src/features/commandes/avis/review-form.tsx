@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useRouter } from "next/navigation";
 import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
 import { laisserAvis } from "@/server/modules/commandes/actions";
@@ -16,7 +17,14 @@ export function ReviewForm({ ligneCommandeId, produitNom, trigger }: { ligneComm
   const [survol, setSurvol] = useState(0);
   const [texte, setTexte] = useState("");
   const [erreurs, setErreurs] = useState<Record<string, string[]>>({});
-  const { run, pending } = useAction(laisserAvis, { onSuccess: () => setOuvert(false) });
+  const router = useRouter();
+  // l'avis apparaît aussitôt (fiche produit, boutique, « Mes avis ») : la page est rafraîchie
+  const { run, pending } = useAction(laisserAvis, {
+    onSuccess: () => {
+      setOuvert(false);
+      router.refresh();
+    },
+  });
 
   return (
     <Dialog open={ouvert} onOpenChange={setOuvert}>

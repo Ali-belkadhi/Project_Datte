@@ -11,46 +11,43 @@ import { RatingBreakdown, ReviewList } from "@/features/commandes/avis";
 import { pageMetadata } from "@/lib/seo";
 import { produitsParFournisseur } from "@/server/modules/catalogue/services/produits";
 import { getFournisseurParSlug } from "@/server/modules/comptes/services/fournisseurs";
-import { getFournisseurBySlug } from "@/server/services/FournisseurService";
+import { getUtilisateurCourant } from "@/server/contracts/comptes";
 import { avisFournisseur } from "@/server/modules/commandes/services/avis";
+
+// rendue à chaque visite : nouveaux produits et avis visibles aussitôt (pas de page en cache)
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const real = await getFournisseurBySlug(slug).catch(() => null);
-  if (real) {
-    if (real.statutVerification !== "VERIFIE") return pageMetadata("Boutique introuvable");
-    return pageMetadata(real.nomBoutique ?? slug, real.description ?? "");
-  }
-  const f = await getFournisseurParSlug(slug);
-  return f ? pageMetadata(f.nomBoutique, f.description) : pageMetadata("Boutique introuvable");
+  const f = await getFournisseurParSlug(slug).catch(() => null);
+  return f?.verifie ? pageMetadata(f.nomBoutique, f.description) : pageMetadata("Boutique");
 }
 
-/** Boutique publique (module B). */
+/** Le propriétaire de la boutique ou un admin peut la voir avant sa validation (aperçu). */
+async function peutVoirApercu(fournisseurId: string) {
+  const u = await getUtilisateurCourant().catch(() => null);
+  return Boolean(u && (u.role === "ADMIN" || u.fournisseurId === fournisseurId));
+}
+
+/** Boutique publique (module B) : présentation, produits publiés, avis des clients sur ses produits. */
 export default async function BoutiquePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const real = await getFournisseurBySlug(slug).catch(() => null);
-  if (real) {
-    if (real.statutVerification !== "VERIFIE") notFound();
-    return (
-      <Container className="space-y-8 py-6 md:py-10">
-        <h1 className="font-display text-3xl font-semibold">{real.nomBoutique}</h1>
-        {real.logoUrl && <img src={real.logoUrl} alt="logo" width={120} height={120} />}
-        {real.bannerUrl && <img src={real.bannerUrl} alt="banner" width={1200} height={400} />}
-        <p>{real.description}</p>
-        <p className="text-sm text-muted-foreground">{real.region} · {real.type}</p>
-        <p>Note: {real.noteMoyenne} · Ventes: {real.nombreVentes}</p>
-        {real.statutVerification === "VERIFIE" && <span className="text-success font-semibold">Vérifié</span>}
-      </Container>
-    );
-  }
-  const b = await getFournisseurParSlug(slug);
+  const b = await getFournisseurParSlug(slug).catch(() => null);
   if (!b) notFound();
+  // boutique publique une fois validée par l'admin ; avant, visible seulement par son propriétaire (aperçu)
+  const apercu = !b.verifie;
+  if (apercu && !(await peutVoirApercu(b.id))) notFound();
   const [produits, { avis, repartition }] = await Promise.all([produitsParFournisseur(b.id), avisFournisseur(b.id)]);
 
   return (
     <Container className="space-y-8 py-6 md:py-10">
       <Breadcrumbs items={[{ label: "Accueil", href: "/" }, { label: "Boutiques", href: "/recherche" }, { label: b.nomBoutique }]} />
-      <ShopHero boutique={b} />
+      {apercu && (
+        <p role="status" className="rounded-xl bg-brand-soft px-4 py-3 text-sm font-semibold text-accent-foreground">
+          Aperçu de votre boutique : elle sera visible par tous une fois votre dossier validé par l&apos;équipe DEGLA.
+        </p>
+      )}
+      <ShopHero boutique={b} apercu={apercu} />
       <Tabs defaultValue="produits" className="gap-6">
         <TabsList>
           <TabsTrigger value="produits">Produits ({produits.length})</TabsTrigger>
@@ -63,19 +60,22 @@ export default async function BoutiquePage({ params }: { params: Promise<{ slug:
         <TabsContent value="apropos" className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
           <div className="space-y-4 text-[15px] leading-relaxed">
             <h2 className="font-display text-2xl font-semibold">Notre histoire</h2>
-            <p>{b.histoire}</p>
-            <p className="text-muted-foreground">{b.description}</p>
+            <p>{b.histoire || b.description || "Cette boutique n'a pas encore présenté son histoire."}</p>
+            {b.histoire && b.description && b.histoire !== b.description && <p className="text-muted-foreground">{b.description}</p>}
           </div>
           <div className="space-y-3 rounded-2xl border bg-card p-5">
             <h3 className="font-semibold">Variétés cultivées</h3>
+            {!b.varietes.length && <p className="text-[13px] text-muted-foreground">Variétés visibles dans les produits de la boutique.</p>}
             <ul className="flex flex-wrap gap-2">
-              {b.varietes.map((v) => (
+              {b.varietes.filter((v) => VARIETY_PRESETS[v]).map((v) => (
                 <li key={v} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-sand px-3 text-[13px] font-semibold">
                   <VarietyGlyph variete={v} className="size-4" /> {VARIETY_PRESETS[v].nom}
                 </li>
               ))}
             </ul>
-            <p className="text-[13px] text-muted-foreground">Gérant : {b.gerant} · {b.delaiExpedition}</p>
+            <p className="text-[13px] text-muted-foreground">
+              {b.gerant ? `Gérant : ${b.gerant} · ` : ""}Expédition sous {b.delaiExpedition}
+            </p>
           </div>
         </TabsContent>
         <TabsContent value="avis" className="grid gap-6 lg:grid-cols-[320px_1fr]">
