@@ -12,7 +12,11 @@ import { CartButton } from "./cart-button";
 import { SearchCommand, type SearchIndex } from "./search-command";
 import { PwaInstallButton } from "./pwa-install-button";
 
-/** En-tête acheteur : desktop complet, mobile logo + recherche + panier. */
+/** Accès à l'espace vendeur / admin : visible à toutes les tailles (libellé court sur mobile). */
+const ACCES =
+  "ms-1 inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-sm font-semibold transition-colors hover:bg-accent sm:ms-2 xl:px-4";
+
+/** En-tête acheteur : desktop complet, mobile logo + recherche + panier + accès vendeur. */
 export function BuyerHeader({ index, role }: { index: SearchIndex; role: string | null }) {
   const pathname = usePathname();
   const [ouvert, setOuvert] = useState(false);
@@ -54,23 +58,27 @@ export function BuyerHeader({ index, role }: { index: SearchIndex; role: string 
           {role && (
             <LogoutButton
               showLabel={false}
-              className="grid size-11 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              // sur mobile, la déconnexion reste dans « Compte » : la place va à l'accès vendeur
+              className="hidden size-11 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:grid"
             />
           )}
           {isFournisseur ? (
-            <Link href="/vendeur" className="ms-2 hidden h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors hover:bg-accent xl:inline-flex">
-              <LayoutDashboard className="size-4" aria-hidden />
-              Mon espace vendeur
+            <Link href="/vendeur" className={ACCES} aria-label="Mon espace vendeur">
+              <LayoutDashboard className="size-4 shrink-0" aria-hidden />
+              <span className="xl:hidden">Vendeur</span>
+              <span className="hidden xl:inline">Mon espace vendeur</span>
             </Link>
           ) : role === "ADMIN" ? (
-            <Link href="/admin" className="ms-2 hidden h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors hover:bg-accent xl:inline-flex">
-              <LayoutDashboard className="size-4" aria-hidden />
-              Administration
+            <Link href="/admin" className={ACCES} aria-label="Administration">
+              <LayoutDashboard className="size-4 shrink-0" aria-hidden />
+              <span className="xl:hidden">Admin</span>
+              <span className="hidden xl:inline">Administration</span>
             </Link>
           ) : (
-            <Link href="/inscription?role=vendeur" className="ms-2 hidden h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors hover:bg-accent xl:inline-flex">
-              <Store className="size-4" aria-hidden />
-              Vendre sur DEGLA
+            <Link href="/inscription?role=vendeur" className={ACCES} aria-label="Vendre sur DEGLA">
+              <Store className="size-4 shrink-0" aria-hidden />
+              <span className="xl:hidden">Vendre</span>
+              <span className="hidden xl:inline">Vendre sur DEGLA</span>
             </Link>
           )}
         </div>
