@@ -1,7 +1,7 @@
 // CONTRAT — fourni par le MODULE C (Commandes). Signatures stables pour les modules A et B.
 import "server-only";
 import { fusionnerPanierVisiteur as _fusionner } from "@/server/modules/commandes/services/panier";
-import { getPaiement, initierPaiement as _initier } from "@/server/modules/commandes/services/paiements";
+import { getPaiement, initierPaiement as _initier, synchroniserSessionStripe } from "@/server/modules/commandes/services/paiements";
 
 export type ObjetPaiement =
   | { type: "COMMANDE"; reference: string }
@@ -15,6 +15,15 @@ export type ObjetPaiement =
  * `confirmerAchatCredits3D()` du contrat catalogue (module B) avec le statut REUSSI ou ECHOUE.
  */
 export const initierPaiement = (montant: number, objet: ObjetPaiement) => _initier(montant, objet, { methode: "CARTE" });
+
+/**
+ * Retour de la page Stripe (`?session_id=`) : vérifie la session auprès de Stripe et confirme
+ * le paiement (idempotent). Pour B : crédite les crédits 3D même sans webhook configuré.
+ */
+export async function confirmerRetourPaiement(sessionId: string) {
+  const p = await synchroniserSessionStripe(sessionId).catch(() => null);
+  return p?.statut ?? null;
+}
 
 /** Callback côté B : statut d'un paiement (EN_ATTENTE, REUSSI, ECHOUE, REMBOURSE). */
 export async function statutPaiement(reference: string) {

@@ -18,8 +18,8 @@ async function main() {
   // Documents enregistrés dans MongoDB (GridFS, bucket « media »), comme les envois de l'application :
   // ils restent disponibles une fois déployée (Vercel n'a pas de disque persistant). Copie locale conservée.
   const mongooseSeed = (await import("mongoose")).default;
-  const { GridFSBucket } = await import("mongodb");
-  const mediaBucket = new GridFSBucket(mongooseSeed.connection.db as never, { bucketName: "media" });
+  // GridFS de la même version du driver que la connexion mongoose (sinon : BSONVersionError)
+  const mediaBucket = new mongooseSeed.mongo.GridFSBucket(mongooseSeed.connection.db as never, { bucketName: "media" });
   async function saveFile(buf: Buffer, name: string) {
     fs.writeFileSync(path.join(uploadsDir, name), buf);
     const filename = `uploads/${name}`;

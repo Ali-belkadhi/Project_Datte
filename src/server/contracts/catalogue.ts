@@ -89,7 +89,7 @@ export async function confirmerAchatCredits3D(achat: { reference: string; paieme
   const pack = (await creditsRepository.packs()).find((p) => p.id === packId);
   const credits = pack?.nombreCredits ?? 0;
   if (credits > 0) await creditsRepository.crediter(fournisseurId, credits, `Achat pack ${pack?.nom ?? packId} (${credits} crédits) — paiement ${achat.paiementReference}`);
-  await notifier(utilisateurId, "ACHAT_CREDITS_CONFIRME", { pack: packId, credits }).catch(() => undefined);
+  await notifier(utilisateurId, "ACHAT_CREDITS_CONFIRME", { pack: pack?.nom ?? packId, credits, montant: achat.montant }).catch(() => undefined);
   return { credite: credits };
 }
 

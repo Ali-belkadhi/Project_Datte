@@ -1,5 +1,6 @@
 import "server-only";
 import { connectMongo } from "@/server/core/mongo";
+import { getParametres } from "@/server/services/ParametresService";
 import { PACKS_CREDITS, MOUVEMENTS_CREDITS, SOLDE_CREDITS } from "@/mocks/credits";
 import type { MouvementCredit3D, PackCredits3D, SoldeCredits3D } from "@/types/domain";
 import type { CreditsRepository } from "./modele3d.repository";
@@ -34,6 +35,11 @@ function toMouvement(doc: ICreditMouvementDocument): MouvementCredit3D {
   };
 }
 
+/** Compte de démonstration du template (données fictives partagées avec « f-ben-amor »). */
+const estDemo = (fid: string) => fid === "fournisseur-001" || fid === "f-ben-amor";
+/** Chaque fournisseur a son propre solde ; seul le compte de démonstration regroupe ses deux identifiants. */
+const filtreFournisseur = (fid: string) => (estDemo(fid) ? { $in: ["fournisseur-001", "f-ben-amor"] } : fid);
+
 async function assurerInitialisation(fournisseurId: string) {
   await connectMongo();
 
@@ -56,8 +62,29 @@ async function assurerInitialisation(fournisseurId: string) {
   // 2. Solde fournisseur
   const fid = fournisseurId || "fournisseur-001";
   let soldeDoc = await CreditSoldeModel.findOne({
-    fournisseurId: { $in: [fid, fid === "fournisseur-001" ? "f-ben-amor" : "fournisseur-001"] },
+    fournisseurId: filtreFournisseur(fid),
   });
+
+  if (!soldeDoc && !estDemo(fid)) {
+    // vrai fournisseur : solde propre, crédits offerts à l'inscription (EF-66, paramétrés par l'admin)
+    const p = (await getParametres().catch(() => null)) as { creditsOffertsInscription?: number; seuilCreditsBas?: number; coutCreditsImage?: number; coutCreditsMultiImage?: number } | null;
+    const offerts = typeof p?.creditsOffertsInscription === "number" ? p.creditsOffertsInscription : 5;
+    try {
+      await CreditSoldeModel.create({
+        fournisseurId: fid,
+        solde: offerts,
+        seuilBas: p?.seuilCreditsBas ?? SOLDE_CREDITS.seuilBas,
+        coutImage: p?.coutCreditsImage ?? SOLDE_CREDITS.coutImage,
+        coutMultiImage: p?.coutCreditsMultiImage ?? SOLDE_CREDITS.coutMultiImage,
+      });
+      if (offerts > 0) {
+        await CreditMouvementModel.create({ fournisseurId: fid, type: "BONUS", quantite: offerts, soldeApres: offerts, motif: "Crédits offerts à l'inscription" });
+      }
+    } catch {
+      // création simultanée par une autre requête : le solde existe déjà
+    }
+    return;
+  }
 
   if (!soldeDoc) {
     soldeDoc = await CreditSoldeModel.create({
@@ -68,7 +95,7 @@ async function assurerInitialisation(fournisseurId: string) {
       coutMultiImage: SOLDE_CREDITS.coutMultiImage,
     });
 
-    // Seed mouvements initiaux
+    // Seed mouvements initiaux (compte de démonstration uniquement)
     const countMvts = await CreditMouvementModel.countDocuments({ fournisseurId: fid });
     if (countMvts === 0) {
       for (const m of MOUVEMENTS_CREDITS) {
@@ -118,7 +145,7 @@ export const creditsRepositoryMongo: CreditsRepository & {
     await assurerInitialisation(fid);
 
     const doc = await CreditSoldeModel.findOne({
-      fournisseurId: { $in: [fid, fid === "fournisseur-001" ? "f-ben-amor" : "fournisseur-001"] },
+      fournisseurId: filtreFournisseur(fid),
     }).lean<ICreditSoldeDocument | null>();
 
     if (!doc) {
@@ -139,7 +166,7 @@ export const creditsRepositoryMongo: CreditsRepository & {
     await assurerInitialisation(fid);
 
     const docs = await CreditMouvementModel.find({
-      fournisseurId: { $in: [fid, fid === "fournisseur-001" ? "f-ben-amor" : "fournisseur-001"] },
+      fournisseurId: filtreFournisseur(fid),
     })
       .sort({ creeLe: -1 })
       .limit(50)
@@ -156,7 +183,7 @@ export const creditsRepositoryMongo: CreditsRepository & {
     // Atomic decrement if solde >= quantite
     const doc = await CreditSoldeModel.findOneAndUpdate(
       {
-        fournisseurId: { $in: [fid, fid === "fournisseur-001" ? "f-ben-amor" : "fournisseur-001"] },
+        fournisseurId: filtreFournisseur(fid),
         solde: { $gte: quantite },
       },
       { $inc: { solde: -quantite } },
@@ -182,7 +209,7 @@ export const creditsRepositoryMongo: CreditsRepository & {
     await assurerInitialisation(fid);
 
     const doc = await CreditSoldeModel.findOneAndUpdate(
-      { fournisseurId: { $in: [fid, fid === "fournisseur-001" ? "f-ben-amor" : "fournisseur-001"] } },
+      { fournisseurId: filtreFournisseur(fid) },
       { $inc: { solde: quantite } },
       { returnDocument: "after" }
     );
@@ -204,7 +231,7 @@ export const creditsRepositoryMongo: CreditsRepository & {
     await assurerInitialisation(fid);
 
     const doc = await CreditSoldeModel.findOne({
-      fournisseurId: { $in: [fid, fid === "fournisseur-001" ? "f-ben-amor" : "fournisseur-001"] },
+      fournisseurId: filtreFournisseur(fid),
     });
 
     await CreditMouvementModel.create({
@@ -222,7 +249,7 @@ export const creditsRepositoryMongo: CreditsRepository & {
     await assurerInitialisation(fid);
 
     const doc = await CreditSoldeModel.findOneAndUpdate(
-      { fournisseurId: { $in: [fid, fid === "fournisseur-001" ? "f-ben-amor" : "fournisseur-001"] } },
+      { fournisseurId: filtreFournisseur(fid) },
       { $inc: { solde: quantite } },
       { returnDocument: "after", upsert: true }
     );
